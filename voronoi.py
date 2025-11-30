@@ -15,23 +15,39 @@ from PIL import Image, ImageTk
 class SeqDiagram:
 	def __init__(self):
 		self.reset()
-		
+		self.textField = None
+
 	def log(self, text):
 		self.logList.append(text)
 		return self
-		
+
 	def out(self):
-		print ("participant main as \"Main\"")
-		for key, value in self.participant.items():
-			print ("participant " + key + " as \"" + value + "\"")
-		print ()
-		for value in self.logList:
-			print (value)
+		if self.textField == None:
+			print ("participant main as \"Main\"")
+			for key, value in self.participant.items():
+				print ("participant " + key + " as \"" + value + "\"")
+			print ()
+			for value in self.logList:
+				print (value)
+		else:
+			for tag in self.textField.tag_names():
+				self.textField.tag_delete(tag)
+			self.textField.tag_config("part", foreground="blue")
+			self.textField.delete("1.0", "end")
+			self.textField.insert("end", "participant main as \"Main\"\n", "part")
+			for key, value in self.participant.items():
+				self.textField.insert("end", "participant " + key + " as \"" + value + "\"" + "\n", "part")
+			self.textField.insert("end", "\n")
+			for value in self.logList:
+				self.textField.insert("end", value + "\n")
 		return self
 
 	def reset(self):
 		self.participant = dict()
 		self.logList = list()
+
+	def setTextField(self, field):
+		self.textField = field
 
 	def call(self, **info):
 		'''
@@ -288,6 +304,12 @@ class Site:
 		# print("		calculateDist", dist, self, y, d)
 		seqDiagram.ret(dist=dist)
 		return dist
+		
+	def __lt__(self, other):
+		result = other.getX() - self.getX() > 0
+		if other.getX() == self.getX():
+			result = other.getY() - self.getY() > 0
+		return result
 
 class Sites:
 	def __init__(self):
@@ -874,6 +896,11 @@ if __name__ == "__main__":
 	sliderSweep = tk.Scale(voronoiFrameSweep, from_=0, to=100, resolution=0.1, orient=tk.HORIZONTAL, tickinterval=10,showvalue = 1, variable=valueSweepline, command=moveSweepline)
 	voronoiCanvas = tk.Canvas(voronoiFrameCanvas, width=canvasSize, height=canvasSize, background='#cfc')
 	voronoiFrameCanvas.bind("<Configure>", resizeCanvas)
+	# log widget
+	textFrame = tk.Frame(mainFrame, bd=0, bg="#aaf", relief=tk.SUNKEN)
+	scrollbar = tk.Scrollbar(textFrame, orient="vertical")
+	text=tk.Text(textFrame, yscrollcommand=scrollbar.set, wrap="none", bd=1, bg="#ffe", relief=tk.SUNKEN, width = 50, padx = 10, pady = 10, font=("Ubuntu Mono", 12, "normal"))
+	scrollbar.config(command=text.yview)
 	
 	# pack all Frames
 	mainFrame.pack(side=tk.TOP, fill=tk.BOTH, expand=1)
@@ -882,6 +909,11 @@ if __name__ == "__main__":
 	voronoiFrameSweep.pack(side=tk.TOP, fill=tk.BOTH, expand=0)
 	sliderSweep.pack(side=tk.TOP, fill=tk.BOTH, expand=1)
 	voronoiCanvas.pack(side=tk.TOP, fill=tk.NONE, expand=0)
+	textFrame.pack(side=tk.LEFT, fill=tk.BOTH, expand=0)
+	scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+	text.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+	
+	seqDiagram.setTextField(text)
 	
 	sites = Sites();
 	sites.add(40,20)
