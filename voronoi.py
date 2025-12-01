@@ -159,6 +159,7 @@ def circle(s0,s1,s2):
 		calculates a circle based on 3 points (have to be passed as site-objects)
 		returns the center of the circle and the radius
 	'''
+	seqDiagram.call()
 	x0,y0 = s0.getX(), s0.getY()
 	x1,y1 = s1.getX(), s1.getY()
 	x2,y2 = s2.getX(), s2.getY()
@@ -248,15 +249,14 @@ class MCanvas:
 		width,fill=1,"#44f"
 		self.canvas.create_line(*line, width=width, fill=fill, activefill = "#f00", tags=('arc'))
 
-	def drawCircle(self, circleElement):
+	def drawCircle(self, x,y,r):
 		seqDiagram.call()
-		# print ("MCanvas.circle", circleElement)
-		lx,ly = self.xy(circleElement[0] - circleElement[2], circleElement[1] - circleElement[2])
-		ux,uy = self.xy(circleElement[0] + circleElement[2], circleElement[1] + circleElement[2])
-		self.canvas.create_oval(lx,ly,ux,uy, outline="#000", fill="", width=2, tags=('circle'))
-		kx,ky = self.xy(circleElement[0], circleElement[1])
+		lx,ly = self.xy(x - r, y - r)
+		ux,uy = self.xy(x + r, y + r)
+		self.canvas.create_oval(lx,ly,ux,uy, outline="#cef", fill="", width=5, tags=('circle'))
+		kx,ky = self.xy(x,y)
 		# center of the circle
-		self.canvas.create_oval(kx-7,ky-7,kx+7,ky+7, outline="#000", fill="#0a0", width=2, tags=('circle'))
+		self.canvas.create_oval(kx-7,ky-7,kx+7,ky+7, outline="#000", fill="#fa6", width=1, tags=('circle'))
 
 class Site:
 	'''
@@ -268,6 +268,7 @@ class Site:
 		seqDiagram.call(y=y,x=x)
 		self.x = x
 		self.y = y
+		self.neighbor = []
 
 	def getX(self):
 		return self.x
@@ -358,23 +359,25 @@ class BeachArc:
 	def setNextTop(self, arc):
 		seqDiagram.call()
 		if arc == None:
-			seqDiagram.comment("set: None")
+			seqDiagram.comment("set Next Top: None")
 		else:
-			seqDiagram.comment("set: " + str(arc.getSite()))
+			seqDiagram.comment("set Next Top: " + str(arc.getSite()))
 		self.nextTop = arc
 
 	def setNextBottom(self, arc):
 		seqDiagram.call()
 		if arc == None:
-			seqDiagram.comment("set: None")
+			seqDiagram.comment("set Next Bottom: None")
 		else:
-			seqDiagram.comment("set: " + str(arc.getSite()))
+			seqDiagram.comment("set Next Bottom: " + str(arc.getSite()))
 		self.nextBottom = arc
 
 	def getNextTop(self):
+		seqDiagram.call()
 		return self.nextTop
 
 	def getNextBottom(self):
+		seqDiagram.call()
 		return self.nextBottom
 
 	def setEdgeArc(self, arc):
@@ -592,22 +595,26 @@ class Beachline:
 				# print ("Beachline.addSite\tadd arc \tSite: ",site, "\tnewArc", newArc,"\tbestArcAbove", bestArc, "\tbestArcBelow", bestArcCopy, "\taddIndex:", addIndex)
 				seqDiagram.groupEnd()
 				if True:
+					seqDiagram.groupStart("set CircleEvents", color="#bdf")
 					# add the circleEvents
 					c1,c2 = None, None
 					if addIndex > 1:
 						c1 = circle(self.arcs[addIndex-2].getSite(),self.arcs[addIndex-1].getSite(),self.arcs[addIndex].getSite())
-						print ("Beachline.addSite\tcirc above\tSite: ",c1,"\t", self.arcs[addIndex-2], self.arcs[addIndex-1], self.arcs[addIndex])
+						# print ("Beachline.addSite\tcirc above\tSite: ",c1,"\t", self.arcs[addIndex-2], self.arcs[addIndex-1], self.arcs[addIndex])
+						seqDiagram.comment("circle above x:" + formatFloatOrNone(c1[0]) + ", y:" + formatFloatOrNone(c1[1]) + ", r:" + formatFloatOrNone(c1[2]))
 					if addIndex < len(self.arcs)-2:
 						c2 = circle(self.arcs[addIndex+2].getSite(),self.arcs[addIndex+1].getSite(),self.arcs[addIndex].getSite())
-						print ("Beachline.addSite\tcirc below\tSite: ",c2,"\t", self.arcs[addIndex+2], self.arcs[addIndex+1], self.arcs[addIndex])
+						# print ("Beachline.addSite\tcirc below\tSite: ",c2,"\t", self.arcs[addIndex+2], self.arcs[addIndex+1], self.arcs[addIndex])
+						seqDiagram.comment("circle below x:" + formatFloatOrNone(c2[0]) + ", y:" + formatFloatOrNone(c2[1]) + ", r:" + formatFloatOrNone(c2[2]))
 					if c1 == None:
 						if c2 != None:
 							newCircles.append(EventCircle(c2))
 					else:
 						newCircles.append(EventCircle(c1))
 						if c2 != None:
-							if c1[0] != c2[0] or c1[1] != c2[1]:
+							if c1[0] != c2[0] or c1[1] != c2[1] or c1[2] != c2[2]:
 								newCircles.append(EventCircle(c2))
+					seqDiagram.groupEnd()
 				
 		print("Beachline.addSite\tfinished\tSite: ",site,"\t",self, newCircles)
 		return newCircles
@@ -712,13 +719,16 @@ class EventCircle(Event):
 		
 	def handleEvent(self, beachline):
 		seqDiagram.call()
-		print ("EventCircle.handleEvent\t")
+		# print ("EventCircle.handleEvent\t")
 		self.open = False
 		# seqDiagram.ret()
 		return None
 		
 	def draw(self,canvas,d):
-		pass
+		seqDiagram.groupStart("draw EventCircle", color="#afa")
+		seqDiagram.call()
+		canvas.drawCircle(self.mx,self.my,self.r)
+		seqDiagram.groupEnd()
 		
 	def __str__(self):
 		return ".circle\t" + str(self.id) + "\t" + "-+"[self.open] + " ["+str(self.mx+self.r) + "," + str(self.my) + "]"
@@ -732,6 +742,7 @@ class EventQueue:
 		
 	def addQueue(self,event):
 		seqDiagram.call()
+		seqDiagram.comment("actual event: " + formatFloatOrNone(self.events[self.index].getX()) + "\\nnew event: " + formatFloatOrNone(event.getX()))
 		self.events.append(event)
 		self.events.sort()
 
@@ -893,8 +904,8 @@ if __name__ == "__main__":
 	voronoiFrame = tk.Frame(mainFrame, bd=0, bg="#aaa", relief=tk.SUNKEN)
 	voronoiFrameCanvas = tk.Frame(voronoiFrame, bd=0, bg="#aaa", relief=tk.SUNKEN)
 	voronoiFrameSweep = tk.Frame(voronoiFrame, bd=0, bg="#aaa", relief=tk.SUNKEN)
-	sliderSweep = tk.Scale(voronoiFrameSweep, from_=0, to=100, resolution=0.1, orient=tk.HORIZONTAL, tickinterval=10,showvalue = 1, variable=valueSweepline, command=moveSweepline)
-	voronoiCanvas = tk.Canvas(voronoiFrameCanvas, width=canvasSize, height=canvasSize, background='#cfc')
+	sliderSweep = tk.Scale(voronoiFrameSweep, from_=0, to=150, resolution=0.1, orient=tk.HORIZONTAL, tickinterval=10,showvalue = 1, variable=valueSweepline, command=moveSweepline)
+	voronoiCanvas = tk.Canvas(voronoiFrameCanvas, width=canvasSize, height=canvasSize, background='#efe')
 	voronoiFrameCanvas.bind("<Configure>", resizeCanvas)
 	# log widget
 	textFrame = tk.Frame(mainFrame, bd=0, bg="#aaf", relief=tk.SUNKEN)
@@ -921,6 +932,8 @@ if __name__ == "__main__":
 	sites.add(60,10)
 	sites.add(25,70)
 	sites.add(80,50)
+	sites.add(30,50)
+	sites.add(20,80)
 	
 	# sites.add(50,5)
 	# sites.add(95,40)
