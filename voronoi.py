@@ -15,13 +15,22 @@ from PIL import Image, ImageTk
 class SeqDiagram:
 	def __init__(self):
 		self.reset()
+		# the UI on the Applikation should be a TK-Text
+		# if no Textfield is given the output goes to the console
 		self.textField = None
+		# set a priority for every element of a certain class
+		# that makes the element of the same class group together
+		self.participantOrder = dict()
 
 	def log(self, text):
 		self.logList.append(text)
 		return self
 
 	def out(self):
+		# sort the participant
+		pk = list(self.participant.keys())
+		pk.sort(key=lambda x:(self.participant[x] not in self.participantOrder, self.participantOrder.get(self.participant[x])))
+		
 		if self.textField == None:
 			print ("participant main as \"Main\"")
 			for key, value in self.participant.items():
@@ -30,13 +39,21 @@ class SeqDiagram:
 			for value in self.logList:
 				print (value)
 		else:
+			lastBox=None
 			for tag in self.textField.tag_names():
 				self.textField.tag_delete(tag)
 			self.textField.tag_config("part", foreground="blue")
 			self.textField.delete("1.0", "end")
 			self.textField.insert("end", "participant main as \"Main\"\n", "part")
-			for key, value in self.participant.items():
-				self.textField.insert("end", "participant " + key + " as \"" + value + "\"" + "\n", "part")
+			for key in pk:
+				if self.participant.get(key) != lastBox:
+					if lastBox != None:
+						self.textField.insert("end", "end box\n", "part")
+					lastBox = self.participant.get(key)
+					self.textField.insert("end", "box \"" + lastBox + "\" #ccc\n", "part")
+				self.textField.insert("end", "participant " + key + " as \"" + self.participant.get(key) + "\"" + "\n", "part")
+			if lastBox != None:
+				self.textField.insert("end", "end box\n", "part")
 			self.textField.insert("end", "\n")
 			for value in self.logList:
 				self.textField.insert("end", value + "\n")
@@ -48,6 +65,9 @@ class SeqDiagram:
 
 	def setTextField(self, field):
 		self.textField = field
+		
+	def addParticipantOrder(self, name, value):
+		self.participantOrder[name] = value
 
 	def call(self, **info):
 		'''
@@ -78,9 +98,11 @@ class SeqDiagram:
 			_name2 = self.participant[_id2]
 		if outer[1].function != None:
 			if outer[2].function != None:
-				_func = " : " + outer[2].function + " " + str(outer[2].lineno) + " -> " + outer[1].function + " " + str(outer[1].lineno)
+				# _func = " : " + outer[2].function + " " + str(outer[2].lineno) + " -> " + outer[1].function + " " + str(outer[1].lineno)
+				_func = " : " + str(outer[2].lineno) + " " + outer[2].function + " ->\\n" + str(outer[1].lineno)  + " " + outer[1].function
 			else:
-				_func = " : " + outer[1].function + " " + str(outer[1].lineno)
+				# _func = " : " + outer[1].function + " " + str(outer[1].lineno)
+				_func = " : " + str(outer[1].lineno) + " " + outer[1].function
 		# print ("(0)", info)
 		# print ("(1)", _id1, args1, _1a, _1b, locals1_, outer[1])
 		# print ("(2)", _id2, args2, _2a, _2b, locals2_, outer[2])
@@ -163,6 +185,7 @@ def circle(s0,s1,s2):
 	x0,y0 = s0.getX(), s0.getY()
 	x1,y1 = s1.getX(), s1.getY()
 	x2,y2 = s2.getX(), s2.getY()
+	seqDiagram.comment(str(x0) + "," + str(y0) + "\\n" + str(x1) + "," + str(y1) + "\\n" + str(x2) + "," + str(y2))
 	k1x = 2 * (x1 - x0)
 	k1y = 2 * (y1 - y0)
 	k2x = 2 * (x2 - x0)
@@ -762,9 +785,9 @@ class EventQueue:
 			
 	def stepQueue(self,canvas = None):
 		seqDiagram.call()
-		seqDiagram.comment("index = " + str(self.index))
-		# print ("queue step",self.index)
 		actualEvent = self.events[self.index]
+		seqDiagram.comment("index = " + str(self.index) + ", x = " + str(actualEvent.getX()))
+		# print ("queue step",self.index)
 		if self.beachline == None:
 			self.beachline = Beachline()
 		result = actualEvent.handleEvent(self.beachline)
@@ -926,13 +949,23 @@ if __name__ == "__main__":
 	
 	seqDiagram.setTextField(text)
 	
+	seqDiagram.addParticipantOrder("Main", 0)
+	seqDiagram.addParticipantOrder("Sites", 30)
+	seqDiagram.addParticipantOrder("Site", 31)
+	seqDiagram.addParticipantOrder("EventQueue", 10)
+	seqDiagram.addParticipantOrder("EventSite", 11)
+	seqDiagram.addParticipantOrder("EventCircle", 12)
+	seqDiagram.addParticipantOrder("Beachline", 20)
+	seqDiagram.addParticipantOrder("BeachArc", 21)
+	seqDiagram.addParticipantOrder("MCanvas", 40)
+	
 	sites = Sites();
 	sites.add(40,20)
-	sites.add(40,60)
+	sites.add(50,42)
 	sites.add(60,10)
 	sites.add(25,70)
-	sites.add(80,50)
-	sites.add(30,50)
+	sites.add(80,40)
+	sites.add(25,40)
 	sites.add(20,80)
 	
 	# sites.add(50,5)
