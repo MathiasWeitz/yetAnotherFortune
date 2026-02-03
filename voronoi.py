@@ -7,67 +7,154 @@
 '''
 
 import os, traceback, inspect
-import math
+import math, re
 
 import tkinter as tk 
 from PIL import Image, ImageTk
 
+fontCanvas=("Ubuntu Mono", 12, "normal")
+
+class SeqDiagramElement:
+	def __init__(self, value = None):
+		if type(value) != str:
+			raise Exception("should be string")
+		self.value = value
+		self.origin = None
+		self.target = None
+	
+	def out(self):
+		return self.value
+
 class SeqDiagram:
+	actualGroup = None
 	def __init__(self):
-		self.reset()
+		self.statusActive = True
+		self.parent = None
 		# the UI on the Applikation should be a TK-Text
 		# if no Textfield is given the output goes to the console
 		self.textField = None
 		# set a priority for every element of a certain class
 		# that makes the element of the same class group together
+		# key = class-name, value = order
 		self.participantOrder = dict()
-
-	def log(self, text):
-		self.logList.append(text)
-		return self
-
-	def out(self):
-		# sort the participant
-		pk = list(self.participant.keys())
-		pk.sort(key=lambda x:(self.participant[x] not in self.participantOrder, self.participantOrder.get(self.participant[x])))
-		
-		if self.textField == None:
-			print ("participant main as \"Main\"")
-			for key, value in self.participant.items():
-				print ("participant " + key + " as \"" + value + "\"")
-			print ()
-			for value in self.logList:
-				print (value)
-		else:
-			lastBox=None
-			for tag in self.textField.tag_names():
-				self.textField.tag_delete(tag)
-			self.textField.tag_config("part", foreground="blue")
-			self.textField.delete("1.0", "end")
-			self.textField.insert("end", "participant main as \"Main\"\n", "part")
-			for key in pk:
-				if self.participant.get(key) != lastBox:
-					if lastBox != None:
-						self.textField.insert("end", "end box\n", "part")
-					lastBox = self.participant.get(key)
-					self.textField.insert("end", "box \"" + lastBox + "\" #ccc\n", "part")
-				self.textField.insert("end", "participant " + key + " as \"" + self.participant.get(key) + "\"" + "\n", "part")
-			if lastBox != None:
-				self.textField.insert("end", "end box\n", "part")
-			self.textField.insert("end", "\n")
-			for value in self.logList:
-				self.textField.insert("end", value + "\n")
-		return self
-
-	def reset(self):
+		# key = object-id, value = classname
 		self.participant = dict()
 		self.logList = list()
+		self.hide = list()
+
+	def log(self, text):
+		actualGroupName = "None"
+		if SeqDiagram.actualGroup != None:
+			actualGroupName = str(id(SeqDiagram.actualGroup))
+		# print ("***:\t" + actualGroupName + "\t" + str(id(self)) + "\t" + str(text))
+		if type(text) == str:
+			text = SeqDiagramElement(text)
+		if SeqDiagram.actualGroup == None:
+			self.logList.append(text)
+		else:
+			SeqDiagram.actualGroup.logList.append(text)
+		return self
+
+	def getAllParticipants(self):
+		# print ("***:\tgetAllParticipants")
+		if self.statusActive:
+			for key, value in self.participant.items():
+				if key not in self.top().participant:
+					# print ("***:\tadd getAllParticipants")
+					self.top().participant[key] = value
+			for content in self.logList:
+				if type(content) != str and type(content) != SeqDiagramElement:
+					content.getAllParticipants()
+
+	def out(self):
+		# get all participant
+		if self.statusActive or True:
+			if self.parent == None:
+				self.hideOut()
+				self.getAllParticipants()
+			# sort the participant
+			participant = self.top().participant
+			pk = list(participant.keys())
+			pk.sort(key=lambda x:(participant[x] not in self.top().participantOrder, self.top().participantOrder.get(participant[x])))
+			textField = self.top().textField
+			if textField == None:
+				if self.getParent() == None:
+					print ("\n*****************************\n")
+					print ("participant main as \"Main\"")
+					for key, value in participant.items():
+						print ("participant " + key + " as \"" + value + "\"")
+					print ()
+				for value in self.logList:
+					print ("type(value)", type(value))
+					if type(value) == str:
+						print (str(id(self)), value)
+					elif type(value) == SeqDiagramElement:
+						print (str(id(self)), value.out())
+					else:
+						value.out()
+			else:
+				lastBox=None
+				if self.parent == None:
+					for tag in textField.tag_names():
+						textField.tag_delete(tag)
+					textField.tag_config("part", foreground="blue")
+					textField.delete("1.0", "end")
+					textField.insert("end", "participant main as \"Main\"\n", "part")
+					for key in pk:
+						if participant.get(key) != lastBox:
+							if lastBox != None:
+								textField.insert("end", "end box\n", "part")
+							lastBox = participant.get(key)
+							textField.insert("end", "box \"" + lastBox + "\" #ccc\n", "part")
+						textField.insert("end", "participant " + key + " as \"" + participant.get(key) + "\"" + "\n", "part")
+				if lastBox != None:
+					textField.insert("end", "end box\n", "part")
+				textField.insert("end", "\n")
+				for value in self.logList:
+					if type(value) == str:
+						print ("out+:", value)
+						textField.insert("end", str(value) + "\n")
+					elif type(value) == SeqDiagramElement:
+						print ("out!:", value.out())
+						textField.insert("end", str(value.out()) + "\n")
+					else:
+						print ("out>:", value)
+						value.out()
+		else:
+			# textField.insert("end", "hnote over value: idle" + "\n")
+			pass
+		return self
+
+	def hideElements(self, elements):
+		self.top().hide = list(set(self.top().hide + elements))
+		
+	def hideOut(self):
+		self.statusActive = True
+		for value in self.logList:
+			if type(value) == str:
+				if re.search(r"group", value):
+					self.statusActive = False
+					print ("#*** deactivated", value)
+			elif type(value) == SeqDiagramElement:
+				pass
+			else:
+				value.hideOut()
+		return self.statusActive
+
+	def reset(self):
+		for content in self.logList:
+			if type(content) != str and type(content) != SeqDiagramElement:
+				content.reset()
+		self.participant = dict()
+		self.logList = list()
+		self.hide = list()
+		SeqDiagram.actualGroup = None
 
 	def setTextField(self, field):
-		self.textField = field
+		self.top().textField = field
 		
 	def addParticipantOrder(self, name, value):
-		self.participantOrder[name] = value
+		self.top().participantOrder[name] = value
 
 	def call(self, **info):
 		'''
@@ -86,6 +173,8 @@ class SeqDiagram:
 			_name1 = type(selfObject1).__name__
 			_id1 = '_' + str(id(selfObject1))
 			if _id1 not in self.participant:
+				if _id1 in self.top().participant:
+					_name1 = self.top().participant[_id1]
 				self.participant[_id1] = _name1
 				# print("participant " + _id1 + " as \"" + _name1 + "\"")
 			_name1 = self.participant[_id1]
@@ -93,6 +182,8 @@ class SeqDiagram:
 			selfObject2=locals2_.get('self')
 			_id2 = '_' + str(id(locals2_.get('self')))
 			if _id2 not in self.participant:
+				if _id2 in self.top().participant:
+					_name2 = self.participant[_id2]
 				self.participant[_id2] = _name2
 				# print("participant " + _id2 + " as \"" + _name2 + "\"")
 			_name2 = self.participant[_id2]
@@ -148,10 +239,31 @@ class SeqDiagram:
 		# self.log ("deactivate " + _id1)
 
 	def groupStart(self, name, color="#ddd"):
-		self.log("group" + color + " " + color + " " + name)
+		'''
+			the group is an instance in the log
+		'''
+		group = SeqDiagram()
+		self.log(group)
+		SeqDiagram.actualGroup = group
+		SeqDiagram.actualGroup.setParent(self)
+		SeqDiagram.actualGroup.log("group" + color + " " + color + " " + name)
 
 	def groupEnd(self):
-		self.log("end")
+		SeqDiagram.actualGroup.log("end")
+		if self.getParent() != None:
+			SeqDiagram.actualGroup = self.getParent()
+		
+	def setParent(self, parent):
+		self.parent = parent
+
+	def getParent(self):
+		return self.parent
+		
+	def top(self):
+		result = self
+		while result.getParent() != None:
+			result = result.getParent()
+		return result
 
 	def comment(self, comment, color="#eea"):
 		frame = inspect.currentframe()
@@ -167,6 +279,18 @@ class SeqDiagram:
 				self.participant[_id] = _name
 			_name = self.participant[_id]
 		self.log("note over " + _id + " " + color + ": " + comment)
+		
+	def __len__(self):
+		result = 0
+		for elem in self.logList:
+			print ("type(value)", type(elem))
+			if type(elem) == str:
+				result += 1
+			elif type(elem) == SeqDiagramElement:
+				result += 1
+			else:
+				result += len(elem)
+		return result
 
 seqDiagram = SeqDiagram()
 
@@ -291,11 +415,17 @@ class Site:
 		this denotation is common for fortunes algorithm
 		so you can look up the description of this class in any explanation of fortunes algorithm
 	'''
+	nextSiteId = 0
 	def __init__(self,y,x):
 		seqDiagram.call(y=y,x=x)
+		self.id = Site.nextSiteId
 		self.x = x
 		self.y = y
 		self.neighbor = []
+		Site.nextSiteId += 1
+
+	def getId(self):
+		return self.id
 
 	def getX(self):
 		return self.x
@@ -322,6 +452,8 @@ class Site:
 				# print (line)
 			# seqDiagram.comment("polygon:" + str(polygon))
 			canvas.drawPolygon(polygon)
+		py,px = canvas.xy(self.y,self.x)
+		canvas.canvas.create_text(px+15,py,fill="#060",font=fontCanvas, text=str(self.id), tags=('sites'))
 
 	def dist(self,y,d):
 		seqDiagram.call(y=y,d=d)
@@ -374,6 +506,7 @@ class BeachArc:
 		self.active = True
 		# the arc that is the basis for the edge
 		self.edgeArc = None
+		self.attachedCircleEvents = []
 		self.id = BeachArc.next_id
 		BeachArc.next_id += 1
 		seqDiagram.comment(str(site), color="#cff")
@@ -396,6 +529,20 @@ class BeachArc:
 		if self.nextBottom != None:
 			if self.nextBottom.getActive():
 				idBottom = self.nextBottom.getId()
+		return idTop,idCenter,idBottom
+		
+	def getSiteIds(self):
+		seqDiagram.call()
+		seqDiagram.comment("id=" + str(self.id))
+		idTop,idCenter,idBottom = None,None,None
+		if self.nextTop != None:
+			if self.nextTop.getActive():
+				idTop = self.nextTop.getSite().getId()
+		if self.active:
+			idCenter = self.getSite().id
+		if self.nextBottom != None:
+			if self.nextBottom.getActive():
+				idBottom = self.nextBottom.getSite().getId()
 		return idTop,idCenter,idBottom
 
 	def setNextTop(self, arc):
@@ -560,6 +707,13 @@ class BeachArc:
 				line.extend(canvas.xy(x,y))
 			if len(line) > 3:
 				canvas.canvas.create_line(*line, width=5, fill="#0f0", activefill = "#f00", tags=('arc'))
+			centerY = 0.5 * intersectionHigh + 0.5 * intersectionLow
+			centerX = (Py*Py + Px*Px + centerY*centerY - 2*centerY*Py - d*d) / (2*Px - 2*d)
+			centerY, centerX = canvas.xy(centerY, centerX)
+			canvas.canvas.create_text(centerX+15,centerY,fill="#000",font=fontCanvas, text=str(self.id), tags=('arc'))
+			cPy,cPx = canvas.xy(Py, Px)
+			canvas.canvas.create_line([centerX, centerY, cPx, cPy], width=5, fill="#0ff", activefill = "#f00", tags=('arc'))
+			
 
 	def l(self):
 		# eq1	(y-P1y)^2+(x-P1x)^2=(d-x)^2
@@ -670,14 +824,21 @@ class Beachline:
 		print("Beachline.addSite\tfinished\tSite: ",site,"\t",self, newCircles)
 		return newCircles
 
-	def removeArc(self, arcId):
-		seqDiagram.call(arcId=arcId)
+	def removeArc(self, arc):
+		seqDiagram.call(arc=arc)
 		index = None
+		arcId = arc.getId()
+		arcTop = arc.getNextTop()
+		arcBottom = arc.getNextBottom()
+		if arcTop != None:
+			arcTop.setNextBottom(arcBottom)
+		if arcBottom != None:
+			arcBottom.setNextTop(arcTop)
 		for i in range(len(self.arcs)):
 			if self.arcs[i].getId() == arcId:
 				index = i
 		if index != None:
-			self.arcs[index].remove()
+			# self.arcs[index].remove()
 			self.arcs.pop(index)
 
 	def __str__(self):
@@ -763,9 +924,11 @@ class EventSite(Event):
 
 class EventCircle(Event):
 	def __init__(self,p):
+		# test, if only the central arc as argument is needed (and nothing else)
 		seqDiagram.call()
 		super().__init__()
-		self.arcs = p
+		self.arc = p[1]
+		self.sites = p[1].getSiteIds()
 		coor = arcCircle(p)
 		# seqDiagram.comment("EventCircle\\n" + str(p[0]) + " " + str(p[1]) + " " + str(p[2]))
 		self.mx = coor[0]
@@ -786,50 +949,55 @@ class EventCircle(Event):
 	def handleEvent(self, beachline):
 		seqDiagram.groupStart("circleEvent", color="#dfb")
 		seqDiagram.call()
-		
-		p0l,p0h = self.arcs[0].getIntersectionspointsToNextArcs(self.getX())
-		p1l,p2h = self.arcs[1].getIntersectionspointsToNextArcs(self.getX())
-		p2l,p2h = self.arcs[2].getIntersectionspointsToNextArcs(self.getX())
-		
+
+		# p0l,p0h = self.arcs[0].getIntersectionspointsToNextArcs(self.getX())
+		# p1l,p2h = self.arcs[1].getIntersectionspointsToNextArcs(self.getX())
+		# p2l,p2h = self.arcs[2].getIntersectionspointsToNextArcs(self.getX())
+
 		# stored Beachline
-		arcTop0, arcCenter0, arcBottom0 = self.arcs[0].getId(), self.arcs[1].getId(), self.arcs[2].getId()
+		# arcTop0, arcCenter0, arcBottom0 = self.arcs[0].getId(), self.arcs[1].getId(), self.arcs[2].getId()
+		arcTop0, arcCenter0, arcBottom0 = self.sites[0], self.sites[1], self.sites[2]
 		# actual Beachline
-		arcTop1, arcCenter1, arcBottom1 = self.arcs[1].getAllId()
-		# seqDiagram.comment(str(arcTop0) + "\\n" + str(arcCenter0) + "\\n" + str(arcBottom0))
-		seqDiagram.comment(str(arcTop1) + "\\n" + str(arcCenter1) + "\\n" + str(arcBottom1))
+		arcTop1, arcCenter1, arcBottom1 = self.arc.getSiteIds()
+		seqDiagram.comment(str(arcTop0) + " " + str(arcCenter0) + " " + str(arcBottom0))
+		seqDiagram.comment(str(arcTop1) + " " + str(arcCenter1) + " " + str(arcBottom1))
 		seqDiagram.comment(str(beachline))
 		newCircles = []
 		if arcTop0 == arcTop1 and arcCenter0 == arcCenter1 and arcBottom0 == arcBottom1:
 			# the stored beachline is still relevant
-			beachline.removeArc(arcCenter0)
+			arcTop = self.arc.getNextTop()
+			arcBottom = self.arc.getNextBottom()
+			beachline.removeArc(self.arc)
 			seqDiagram.comment(str(beachline))
 			# do new Circles evolve
-			arcTop = self.arcs[0].getNextTop()
-			arcBottom = self.arcs[2].getNextBottom()
-			c1,c2 = None, None
-			pc1,pc2 = None, None
-			if arcTop != None:
-				pc1 = arcTop,self.arcs[0],self.arcs[2]
-				c1 = arcCircle(pc1)
-			if arcBottom != None:
-				pc2 = self.arcs[0],self.arcs[2],arcBottom
-				c2 = arcCircle(pc2)
-			if c1 == None:
-				if c2 == None:
-					seqDiagram.comment("no circleEvents")
+			if arcTop != None and arcBottom != None:
+				c1,c2 = None, None
+				pc1,pc2 = None, None
+				arcTopTop = arcTop.getNextTop()
+				arcBottomBottom = arcBottom.getNextBottom()
+				if arcTopTop != None:
+					pc1 = arcTopTop,arcTop,arcBottom
+					c1 = arcCircle(pc1)
+				if arcBottomBottom != None:
+					pc2 = arcTop,arcBottom,arcBottomBottom
+					c2 = arcCircle(pc2)
+				if c1 == None:
+					if c2 == None:
+						seqDiagram.comment("no circleEvents")
+					else:
+						seqDiagram.comment(str(pc2) + "\\n" + str(c2) + "\\n" + str(c2[0] + c2[2]) + " >= " + str(self.getX()))
+						if c2[0] + c2[2] >= self.getX():
+							newCircles.append(EventCircle(pc2))
 				else:
-					seqDiagram.comment(str(pc2) + "\\n" + str(c2) + "\\n" + str(c2[0] + c2[2]) + " >= " + str(self.getX()))
-					if c2[0] + c2[2] >= self.getX():
-						newCircles.append(EventCircle(pc2))
-			else:
-				newCircles.append(EventCircle(pc1))
-				if c2 != None:
-					if c1[0] != c2[0] or c1[1] != c2[1] or c1[2] != c2[2]:
-						seqDiagram.comment(str(pc1) + "\\n" + str(c1) + "\\n" + str(c1[0] + c1[2]) + " >= " + str(self.getX()))
-						if c1[0] + c1[2] >= self.getX():
-							newCircles.append(EventCircle(pc1))
+					newCircles.append(EventCircle(pc1))
+					if c2 != None:
+						if c1[0] != c2[0] or c1[1] != c2[1] or c1[2] != c2[2]:
+							seqDiagram.comment(str(pc1) + "\\n" + str(c1) + "\\n" + str(c1[0] + c1[2]) + " >= " + str(self.getX()))
+							if c1[0] + c1[2] >= self.getX():
+								newCircles.append(EventCircle(pc1))
 		self.open = False
 		# seqDiagram.ret()
+		newCircles = []
 		seqDiagram.groupEnd()
 		return newCircles
 		
@@ -838,6 +1006,10 @@ class EventCircle(Event):
 			seqDiagram.groupStart("draw EventCircle", color="#afa")
 			seqDiagram.call()
 			canvas.drawCircle(self.mx,self.my,self.r)
+			labelY,labelX = canvas.xy(self.my,self.mx + self.r)
+			actualSideIds = self.arc.getSiteIds()
+			label = str(self.sites[0]) + " " + str(self.sites[1]) + " " + str(self.sites[2]) + "\n" + str(actualSideIds[0]) + " " + str(actualSideIds[1]) + " " + str(actualSideIds[2])
+			canvas.canvas.create_text(labelX+10,labelY,fill="#00f",font=fontCanvas, text=label, tags=('circle'))
 			seqDiagram.groupEnd()
 		else:
 			seqDiagram.call()
@@ -902,10 +1074,52 @@ class EventQueue:
 	def draw(self,canvas,d):
 		seqDiagram.call()
 		# self.beachline.drawBeach(canvas,d)
-		for event in self.events:
-			event.draw(canvas,d)
 		if self.beachline != None:
 			self.beachline.drawBeach(canvas,d)
+		for event in self.events:
+			event.draw(canvas,d)
+
+if False:
+	# Test Sequenzdiagram
+	
+	class ClassA2():
+		def __init__(self):
+			seqDiagram.call()
+			self.p = None
+
+		def sub2(self, p):
+			seqDiagram.groupStart("group 2", color="#afa")
+			seqDiagram.call()
+			self.p = p
+			self.p.feedback()
+			print ("sub2")
+			seqDiagram.groupEnd()
+			
+	
+	class ClassA1():
+		def __init__(self):
+			seqDiagram.call()
+			self.a2 = ClassA2()
+			
+		def sub1(self):
+			seqDiagram.groupStart("group 1", color="#afa")
+			seqDiagram.call()
+			print ("sub1")
+			self.a2.sub2(self)
+			seqDiagram.groupEnd()
+			
+		def feedback(self):
+			seqDiagram.call()
+			print ("feedback")
+	
+	print ("start sequenztest")
+	seqDiagram.log("anything")
+	a1 = ClassA1()
+	a1.sub1()
+	seqDiagram.log("hear her scream")
+	print ("len seqDiagram", len(seqDiagram))
+	seqDiagram.out()
+
 
 if __name__ == "__main__":
 	app = tk.Tk()
@@ -959,8 +1173,9 @@ if __name__ == "__main__":
 				b = False
 			seqDiagram.groupEnd()
 		
+		mcanvas.drawSweepline(d)
 		# draw all events and event-related
-		queue.draw(mcanvas, valueSweepline.get())
+		queue.draw(mcanvas, d)
 		
 		if False:
 			for site in sites:
@@ -969,7 +1184,6 @@ if __name__ == "__main__":
 				a = BeachArc(site)
 				a.draw(mcanvas,d)
 		
-		mcanvas.drawSweepline(valueSweepline.get())
 		# sites.draw(mcanvas)
 
 	def resizeCanvas(event):
@@ -1003,6 +1217,7 @@ if __name__ == "__main__":
 		# voronoiCanvas.coords(sweeplineID, displaySweepline, 10, displaySweepline, totalH - 10)
 		# sites.draw(voronoiCanvas)
 		seqDiagram.groupEnd()
+		# seqDiagram.hideElements(["beachArc"])
 		seqDiagram.out().reset()
 
 	# create all Frames
@@ -1052,8 +1267,8 @@ if __name__ == "__main__":
 	sites.add(60,10)
 	sites.add(40,20)
 	sites.add(80,40)
-	sites.add(25,40)
-	sites.add(50,45)
+	sites.add(15,45)
+	sites.add(35,45)
 	sites.add(25,70)
 	sites.add(20,80)
 	
