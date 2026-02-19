@@ -488,7 +488,7 @@ class Beachline:
 					seqDiagram.comment(str(i) + " is inside limits: " + str(site.getY()) + " [" + formatFloatOrNone(limitLow) + "," + formatFloatOrNone(limitHigh) + "]" , color="#fff")
 					# @TODO bestDist is not needed anymore, limits should be sufficient, remove it when possible
 					d = actualArc.dist(site)
-					print ("Beachline.addSite\tarc fits\tSite: ",site,"\tindex: ",i,"\tarc: ",actualArc,"\tlimits: ",limitLow,limitHigh,"\tdistance",d)
+					# print ("Beachline.addSite\tarc fits\tSite: ",site,"\tindex: ",i,"\tarc: ",actualArc,"\tlimits: ",limitLow,limitHigh,"\tdistance",d)
 					if d < bestDist:
 						seqDiagram.comment("arc is closest: " + str(i), color="#fff")
 						bestDist = d
@@ -496,7 +496,7 @@ class Beachline:
 				else:
 					seqDiagram.comment(str(i) + " is outside limits: " + str(site.getY()) + " [" + formatFloatOrNone(limitLow) + "," + formatFloatOrNone(limitHigh) + "]", color="#fff")
 					# print ("Beachline.addSite\tarc unfit\tSite: ",site,"\tindex: ",i,"\tarc: ",actualArc,"\tlimits: ",limitLow,limitHigh)
-			seqDiagram.groupEnd()
+			seqDiagram.groupEnd("find best beachArc")
 			if bestIndex == None:
 				print ("!!! addSite Fehler")
 			else:
@@ -517,7 +517,7 @@ class Beachline:
 					bestArcCopy.getNextTop().setNextBottom(bestArcCopy)
 				addIndex = bestIndex+1
 				# print ("Beachline.addSite\tadd arc \tSite: ",site, "\tnewArc", newArc,"\tbestArcAbove", bestArc, "\tbestArcBelow", bestArcCopy, "\taddIndex:", addIndex)
-				seqDiagram.groupEnd()
+				seqDiagram.groupEnd("add beachArc")
 				# Set the CircleEvents
 				seqDiagram.groupStart("set CircleEvents", color="#bdf")
 				# add the circleEvents
@@ -543,7 +543,7 @@ class Beachline:
 					if c2 != None:
 						if c1[0] != c2[0] or c1[1] != c2[1] or c1[2] != c2[2]:
 							newCircles.append(EventCircle(pc2))
-				seqDiagram.groupEnd()
+				seqDiagram.groupEnd("set CircleEvents")
 				
 		print("Beachline.addSite\tfinished\tSite: ",site,"\t",self, newCircles)
 		return newCircles
@@ -592,8 +592,8 @@ class Beachline:
 					xHigh=(Py*Py + Px*Px + limitHigh*limitHigh - 2*limitHigh*Py - d*d) / (2*Px - 2*d)
 					line = [*canvas.xy(xLow, limitLow), *canvas.xy(xHigh, limitHigh)]
 					# canvas.canvas.create_line(*line, width=3, fill="#000", activefill = "#f00", tags=('arc'))
-			seqDiagram.groupEnd()
-		seqDiagram.groupEnd()
+			seqDiagram.groupEnd("draw Arc")
+		seqDiagram.groupEnd("draw Beachline")
 
 class Event:
 	'''
@@ -641,7 +641,7 @@ class EventSite(Event):
 		seqDiagram.groupStart("draw EventSite", color="#dfd")
 		seqDiagram.call()
 		self.site.draw(canvas,d)
-		seqDiagram.groupEnd()
+		seqDiagram.groupEnd("draw EventSite")
 		
 	def __str__(self):
 		return ".site\t" + str(self.id) + "\t" + "-+"[self.open] + " " + str(self.site)
@@ -722,7 +722,7 @@ class EventCircle(Event):
 		self.open = False
 		# seqDiagram.ret()
 		newCircles = []
-		seqDiagram.groupEnd()
+		seqDiagram.groupEnd("circleEvent")
 		return newCircles
 		
 	def draw(self,canvas,d):
@@ -734,7 +734,7 @@ class EventCircle(Event):
 			actualSideIds = self.arc.getSiteIds()
 			label = str(self.sites[0]) + " " + str(self.sites[1]) + " " + str(self.sites[2]) + "\n" + str(actualSideIds[0]) + " " + str(actualSideIds[1]) + " " + str(actualSideIds[2])
 			canvas.canvas.create_text(labelX+10,labelY,fill="#00f",font=fontCanvas, text=label, tags=('circle'))
-			seqDiagram.groupEnd()
+			seqDiagram.groupEnd("draw EventCircle")
 		else:
 			seqDiagram.call()
 
@@ -816,7 +816,7 @@ if False:
 			self.p = p
 			self.p.feedback()
 			print ("sub2")
-			seqDiagram.groupEnd()
+			seqDiagram.groupEnd("sub2")
 			
 	
 	class ClassA1():
@@ -829,7 +829,7 @@ if False:
 			seqDiagram.call()
 			print ("sub1")
 			self.a2.sub2(self)
-			seqDiagram.groupEnd()
+			seqDiagram.groupEnd("sub1")
 			
 		def feedback(self):
 			seqDiagram.call()
@@ -894,7 +894,7 @@ if __name__ == "__main__":
 			value = queue.stepValue()
 			if value > d:
 				b = False
-			seqDiagram.groupEnd()
+			seqDiagram.groupEnd("stepQueue")
 		
 		mcanvas.drawSweepline(d)
 		# draw all events and event-related
@@ -922,7 +922,7 @@ if __name__ == "__main__":
 		# canvasSize = min(event.widget.winfo_width() / 3, event.widget.winfo_height() / 2)
 		# voronoiCanvas.config(width=canvasSize * 3 - 10, height=canvasSize * 2 - 10)
 		# canvas.delete("all")
-		seqDiagram.groupEnd()
+		seqDiagram.groupEnd("resize")
 		seqDiagram.out().reset()
 
 	sweeplineID = None
@@ -939,13 +939,30 @@ if __name__ == "__main__":
 		# displaySweepline = valueSweepline.get() * totalW / 100
 		# voronoiCanvas.coords(sweeplineID, displaySweepline, 10, displaySweepline, totalH - 10)
 		# sites.draw(voronoiCanvas)
-		seqDiagram.groupEnd()
+		seqDiagram.groupEnd("moveSweepline")
 		# seqDiagram.hideElements(["beachArc"])
-		print ("### test SeqDiagram start")
+		# print ("### test SeqDiagram start")
 		# test of groups:
 		# hiding / showing elements based on their class / id
-		seqDiagram.displayStructure()
-		print ("### test SeqDiagram end")
+		
+		seqDiagram.activate()
+		result = seqDiagram.displayStructure()
+		# print ("### test SeqDiagram end")
+		# print(result.outItems())
+		# print(result.outItems(reverseOrder = True, unique = True))
+		# print(result.outClasses())
+		# print(result.outClasses(reverseOrder = True))
+		# print("len:",result.outValue())
+		
+		# 'EventCircle', 'EventQueue', 'Site', 'EventSite', 'Beachline', 'BeachArc'
+		lastEvent = result.getLastOfClass('EventSite', 1)
+		lastEvent.extend(result.getLastOfClass('EventCircle', 1))
+		# print ("getLastOfClass", lastEvent)
+		# seqDiagram.activate()
+		seqDiagram.activate(lastEvent)
+		# resultC = seqDiagram.displayStructure()
+		
+		
 		seqDiagram.out().reset()
 
 	# create all Frames

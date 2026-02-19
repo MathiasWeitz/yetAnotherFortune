@@ -3,6 +3,26 @@
 import os, traceback, inspect
 
 fontCanvas=("Ubuntu Mono", 12, "normal")
+seqDiagramVerbose = False
+
+'''
+	create an instance with
+		seqDiagram = SeqDiagram()
+	the basic command is
+		seqDiagram.call(...)
+	which should always be the beginning of a function / method
+	arguments can be any list of parameter, which are displayed on the call-arrow of the diagram
+	the optional counterpart to 'call' is
+		seqDiagram.ret(...)
+	which makes a arrow back to the caller with a list of the given values
+	to display any comment, value or marker use the command
+		seqDiagram.comment("any string", [color = #hex])
+	this will make a box on the lifeline of the participant
+	
+	to make a box around a certain part of the diagram use
+		seqDiagram.groupStart("name", [color = #hex])
+		seqDiagram.groupEnd()
+'''
 
 class SeqDiagramElement:
 	def __init__(self, value = None):
@@ -11,6 +31,7 @@ class SeqDiagramElement:
 		self.value = value
 		self.origin = None
 		self.target = None
+		self.groupName = None
 
 	def setOrigin(self, origin):
 		self.origin = origin
@@ -21,17 +42,135 @@ class SeqDiagramElement:
 		self.target = target
 		return self
 
+	def getOrigin(self):
+		return self.origin
+
+	def getTarget(self):
+		return self.target
+
+	def setGroupName(self, groupName):
+		# print ("#### setGroupName", groupName)
+		self.groupName = groupName
+		return self
+
+	def getGroupName(self):
+		return self.groupName
+
 	def out(self):
 		return self.value
 		
 	def __str__(self):
-		return "<<SeqDiagramElement [" + str(self.origin) + "]->[" + str(self.target) + "] :" + str(self.value) + ">>"
+		return "<<SeqDiagramElement [" + str(self.origin) + "]->[" + str(self.target) + "] \"" + str(self.groupName) + "\":" + str(self.value) + ">>"
+
+class SeqDiagramResult:
+	def __init__(self, seqDiagram):
+		self.seqDiagram = seqDiagram
+		self.value = 0
+		self.valueActive = 0
+		self.groups = {}
+		self.elems = []
+
+	def getValue(self):
+		return self.value
+
+	def getValueActive(self):
+		return self.valueActive
+
+	def addActive(self, value):
+		if type(value) == int:
+			self.valueActive += value
+		elif type(value) == SeqDiagramResult:
+			self.valueActive += value.getValueActive()
+
+	def getGroup(self):
+		return self.groups
+
+	def getElems(self):
+		return self.elems
+
+	def __iadd__(self, arg):
+		if type(arg) == int:
+			self.value += arg
+		elif type(arg) == SeqDiagramResult:
+			self.value += arg.getValue()
+			# self.valueActive += arg.getValueActive()
+			for name,group in arg.getGroup().items():
+				if name not in self.groups:
+					self.groups[name] = []
+				self.groups[name].extend(arg.getGroup()[name]) 
+			self.elems.extend(arg.getElems())
+		else:
+			raise Exception("SeqDiagramResult: unvalid type")
+		return self
+
+	def __str__(self):
+		return "~" + str(self.value) + "(" + str(self.valueActive) + ") " + str(self.groups) + " " + str(self.elems) + "~"
+
+	def addGroup(self, name, elem):
+		if name != None:
+			if name not in self.groups:
+				self.groups[name] = []
+			self.groups[name].append(elem)
+
+	def addElem(self, elem):
+		self.elems.append(elem)
+		
+	def outValue(self):
+		return self.value
+
+	def outItems(self, reverseOrder = False, unique = False):
+		''' 
+			id of instances in order of use, multiple entries are normal
+			if you use unique, only the first or last appearence is logged
+		'''
+		li = self.elems
+		result = []
+		if reverseOrder:
+			li = reversed(self.elems)
+		for elem in li:
+			# print(elem, className)
+			if not unique or elem not in result:
+				result.append(elem)
+		return result
+
+	def outClasses(self, reverseOrder = False):
+		'''
+			all Classes of Instances in order of their first or last appearance
+		'''
+		li = self.elems
+		result = []
+		if reverseOrder:
+			li = reversed(self.elems)
+		for elem in li:
+			className = "main"
+			if elem in self.seqDiagram.participant:
+				className = self.seqDiagram.participant[elem]
+			# print(elem, className)
+			if className not in result:
+				result.append(className)
+		return result
+
+	def getLastOfClass(self, arg, maxElem = 1):
+		'''
+			get the last $maxElem instances of a class
+		'''
+		li = reversed(self.elems)
+		result = []
+		for elem in li:
+			className = "main"
+			if elem in self.seqDiagram.participant:
+				className = self.seqDiagram.participant[elem]
+			# print (">>>", elem, className)
+			if className == arg and len(result) < maxElem:
+				result.append(elem)
+		return result
 
 class SeqDiagram:
 	actualGroup = None
 	def __init__(self):
 		self.statusActive = True
 		self.parent = None
+		self.parentGroup = None
 		# the UI on the Applikation should be a TK-Text
 		# if no Textfield is given the output goes to the console
 		self.textField = None
@@ -61,9 +200,12 @@ class SeqDiagram:
 			self.logList.append(text)
 		else:
 			SeqDiagram.actualGroup.logList.append(text)
-		return self
+		return text
 
 	def getAllParticipants(self):
+		'''
+			get all participants from the active elements
+		'''
 		# print ("***:\tgetAllParticipants")
 		if self.statusActive:
 			for key, value in self.participant.items():
@@ -74,14 +216,44 @@ class SeqDiagram:
 				if type(content) != str and type(content) != SeqDiagramElement:
 					content.getAllParticipants()
 
+	def collectParticipants(self):
+		result = dict()
+		if self.statusActive:
+			for value in self.logList:
+				if type(value) == str:
+					pass
+				elif type(value) == SeqDiagramElement:
+					origin = value.getOrigin()
+					target = value.getTarget()
+					
+					nameOrigin, nameTarget = "main", "Main"
+					if origin != None:
+						if origin in self.participant:
+							nameOrigin = self.participant[origin]
+						elif origin in self.top().participant:
+							nameOrigin = self.top().participant[origin]
+						result[origin] = nameOrigin
+					if target != None:
+						if target in self.participant:
+							nameTarget = self.participant[target]
+						elif target in self.top().participant:
+							nameTarget = self.top().participant[target]
+						result[target] = nameTarget
+				else:
+					resultC = value.collectParticipants()
+					for key, value in resultC.items():
+						result[key] = value
+		return result
+
 	def out(self):
 		# get all participant
-		if self.statusActive or True:
+		if self.statusActive:
 			if self.parent == None:
-				self.hideOut()
+				# self.hideOut()
 				self.getAllParticipants()
 			# sort the participant
-			participant = self.top().participant
+			# participant = self.top().participant
+			participant = self.collectParticipants()
 			pk = list(participant.keys())
 			pk.sort(key=lambda x:(participant[x] not in self.top().participantOrder, self.top().participantOrder.get(participant[x])))
 			textField = self.top().textField
@@ -107,7 +279,7 @@ class SeqDiagram:
 						textField.tag_delete(tag)
 					textField.tag_config("part", foreground="blue")
 					textField.delete("1.0", "end")
-					textField.insert("end", "participant main as \"Main\"\n", "part")
+					# textField.insert("end", "participant main as \"Main\"\n", "part")
 					for key in pk:
 						if participant.get(key) != lastBox:
 							if lastBox != None:
@@ -130,13 +302,44 @@ class SeqDiagram:
 						value.out()
 		else:
 			# textField.insert("end", "hnote over value: idle" + "\n")
+			# print ("*************** out status passive *******************")
 			pass
 		return self
 
 	def hideElements(self, elements):
 		self.top().hide = list(set(self.top().hide + elements))
 		
+	def activate(self, activateElements = []):
+		'''
+			deactivate all elements except those, which are in the list, and their groups
+		'''
+		self.statusActive = True
+		if 0 < len(activateElements) and self.getParent() != None:
+			self.statusActive = False
+		result = False
+		for value in self.logList:
+			if type(value) == str:
+				pass
+			elif type(value) == SeqDiagramElement:
+				origin = value.getOrigin()
+				target = value.getTarget()
+				if origin != None and origin in activateElements:
+					result = True
+					self.statusActive = True
+				if target != None and target in activateElements:
+					result = True
+					self.statusActive = True
+			else:
+				result = value.activate(activateElements)
+				if result:
+					self.statusActive = True
+		return result
+
 	def hideOut(self):
+		'''
+			deactivate all groups
+			only keeps the topElements
+		'''
 		self.statusActive = True
 		for value in self.logList:
 			if type(value) == str:
@@ -265,7 +468,7 @@ class SeqDiagram:
 				if _id in self.top().participant:
 					_name = self.top().participant[_id]
 				self.participant[_id] = _name
-			_name1 = self.participant[_id]
+			_name = self.participant[_id]
 		if outer[1].function != None:
 			if outer[2].function != None:
 				# _func = " : " + outer[2].function + " " + str(outer[2].lineno) + " -> " + outer[1].function + " " + str(outer[1].lineno)
@@ -273,25 +476,40 @@ class SeqDiagram:
 			else:
 				# _func = " : " + outer[1].function + " " + str(outer[1].lineno)
 				_func = " : " + str(outer[1].lineno) + " " + outer[1].function
-
 		group = SeqDiagram()
 		self.log(group)
+		group.setParent(self)
+		group.setParentGroup(SeqDiagram.actualGroup)
 		SeqDiagram.actualGroup = group
-		SeqDiagram.actualGroup.setParent(self)
-		SeqDiagram.actualGroup.log("group" + color + " " + color + " " + name)
+		# SeqDiagram.actualGroup.setParent(self)
+		if seqDiagramVerbose:
+			print ("!!! group start", id(SeqDiagram.actualGroup), name, _id, _name)
+		elem = SeqDiagram.actualGroup.log("group" + color + " " + color + " " + name, _id)
+		elem.setGroupName(name)
 
-	def groupEnd(self):
+	def groupEnd(self, comment=""):
+		if seqDiagramVerbose:
+			print ("!!! group end", id(SeqDiagram.actualGroup), comment)
 		SeqDiagram.actualGroup.log("end")
-		if SeqDiagram.actualGroup.getParent() != None:
-			print ("!!! goto Parent")
-			SeqDiagram.actualGroup = SeqDiagram.actualGroup.getParent()
+		if SeqDiagram.actualGroup.getParentGroup() != None:
+			SeqDiagram.actualGroup = SeqDiagram.actualGroup.getParentGroup()
+		
+	def setGroupName(self, name):
+		print ("setGroupName logList", str(self.logList))
+		pass
 		
 	def setParent(self, parent):
 		self.parent = parent
 
 	def getParent(self):
 		return self.parent
-		
+	
+	def setParentGroup(self, parentGroup):
+		self.parentGroup = parentGroup
+
+	def getParentGroup(self):
+		return self.parentGroup
+
 	def top(self):
 		result = self
 		while result.getParent() != None:
@@ -314,24 +532,50 @@ class SeqDiagram:
 		self.log("note over " + _id + " " + color + ": " + comment)
 	
 	def displayStructure(self, tab = 0):
-		if self.statusActive:
-			print ("\t" * 2 * tab, "*** active")
-		else:
-			print ("\t" * 2 * tab, "*** passiv")
-		result = 0
+		'''
+			iterates recursively through the logs and collects all items
+			result is length, the logitems and groupnames
+		'''
+		# result = {"groups": {}}
+		result = SeqDiagramResult(self)
+		if seqDiagramVerbose:
+			if tab == 0:
+				print ("*******************************")
+			if self.statusActive:
+				print ("\t" * 2 * tab, "*** active")
+			else:
+				print ("\t" * 2 * tab, "*** passiv")
 		for elem in self.logList:
 			# print ("\t" * tab, elem)
 			if type(elem) == str:
 				# pure string
-				print ("\t" * (2 * tab + 1), "s:", elem)
+				if seqDiagramVerbose:
+					print ("\t" * (2 * tab + 1), "s:", elem)
 				result += 1
+				if self.statusActive:
+					result.addActive(1)
 			elif type(elem) == SeqDiagramElement:
 				# special-element
-				print ("\t" * (2 * tab + 1), "d:", elem.out(), str(elem))
+				groupName  = elem.getGroupName()
+				if seqDiagramVerbose:
+					print ("\t" * (2 * tab + 1), "d:", elem.out(), str(elem), str(groupName))
+				if groupName != None:
+					result.addGroup(groupName,elem)
+				if elem.getTarget() != None:
+					result.addElem(elem.getTarget())
 				result += 1
+				if self.statusActive:
+					result.addActive(1)
 			else:
-				result += elem.displayStructure(tab + 1)
-		print ("\t" * 2 * tab, "*** length", result)
+				resultSub = elem.displayStructure(tab + 1)
+				result += resultSub
+				if self.statusActive:
+					result.addActive(resultSub.getValueActive())
+				# if self.statusActive:
+				#	result.addActive(resultSub)
+		if seqDiagramVerbose:
+			print ("\t" * 2 * tab, "*** length", str(result))
+		
 		return result
 	
 	def __len__(self):
