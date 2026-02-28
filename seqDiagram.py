@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os, traceback, inspect
+import tkinter as tk 
 
 fontCanvas=("Ubuntu Mono", 12, "normal")
 seqDiagramVerbose = False
@@ -183,6 +184,40 @@ class SeqDiagram:
 		self.logList = list()
 		# store a list of groups, that should not appear in the diagrams
 		self.hide = list()
+		self.widget = None
+		self.amountLines = None
+
+	def getWidget(self, parent = None):
+		if self.widget == None and parent == None:
+			raise Exception("can't get Widget without providing a frame")
+		if self.amountLines == None:
+			self.amountLines = tk.IntVar()
+			self.amountLines.set(0)
+		if self.widget == None:
+			self.widget = tk.Frame(parent, bd=0, bg="#aaf", relief=tk.FLAT, width=200)
+			self.widget1 = tk.Frame(self.widget, bd=0, bg="#aaa", relief=tk.FLAT)
+			self.widget2 = tk.Frame(self.widget, bd=0, bg="#aaa", relief=tk.FLAT)
+			scrollbar = tk.Scrollbar(self.widget1, orient="vertical")
+			self.textField=tk.Text(self.widget1, yscrollcommand=scrollbar.set, wrap="none", bd=1, bg="#ffe", relief=tk.SUNKEN, width = 50, padx = 10, pady = 10, font=("Ubuntu Mono", 12, "normal"))
+			scrollbar.config(command=self.textField.yview)
+			self.entry = tk.Entry(self.widget2, textvariable=self.amountLines, font=fontCanvas)
+			self.textField.bind("<Control-Key-a>", self.selectAll)
+			self.textField.bind("<Control-Key-A>", self.selectAll)
+			
+			self.widget.pack(side=tk.LEFT, fill=tk.Y, expand=0)
+			self.widget1.pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+			self.widget2.pack(side=tk.TOP, fill=tk.X, expand=0)
+			scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+			self.textField.pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+			self.entry.pack(side=tk.TOP, fill=tk.X, expand=0)
+		return self.widget
+		
+	def selectAll(self,event):
+		print("selectAll")
+		# self.textField.tag_add(tk.SEL, "1.0", tk.END)
+		# self.textField.mark_set(tk.INSERT, "1.0")
+		# self.textField.see(tk.INSERT)
+		self.textField.select_range(0, tk.END)
 
 	def log(self, text, target=None, source=None):
 		# print ("###!", text, target, source)
@@ -202,9 +237,11 @@ class SeqDiagram:
 			SeqDiagram.actualGroup.logList.append(text)
 		return text
 
-	def getAllParticipants(self):
+	def announceParticipantsToTopLevel(self):
 		'''
-			get all participants from the active elements
+			update all participants from the current level 
+				and all childlevels to the toplevel
+			so the toplevel can list all participans
 		'''
 		# print ("***:\tgetAllParticipants")
 		if self.statusActive:
@@ -214,7 +251,7 @@ class SeqDiagram:
 					self.top().participant[key] = value
 			for content in self.logList:
 				if type(content) != str and type(content) != SeqDiagramElement:
-					content.getAllParticipants()
+					content.announceParticipantsToTopLevel()
 
 	def collectParticipants(self):
 		result = dict()
@@ -225,7 +262,6 @@ class SeqDiagram:
 				elif type(value) == SeqDiagramElement:
 					origin = value.getOrigin()
 					target = value.getTarget()
-					
 					nameOrigin, nameTarget = "main", "Main"
 					if origin != None:
 						if origin in self.participant:
@@ -245,12 +281,12 @@ class SeqDiagram:
 						result[key] = value
 		return result
 
-	def out(self):
+	def out(self, tab = 0):
 		# get all participant
 		if self.statusActive:
 			if self.parent == None:
 				# self.hideOut()
-				self.getAllParticipants()
+				self.announceParticipantsToTopLevel()
 			# sort the participant
 			# participant = self.top().participant
 			participant = self.collectParticipants()
@@ -271,9 +307,10 @@ class SeqDiagram:
 					elif type(value) == SeqDiagramElement:
 						print (str(id(self)), value.out())
 					else:
-						value.out()
+						value.out(tab+1)
 			else:
 				lastBox=None
+				# participant
 				if self.parent == None:
 					for tag in textField.tag_names():
 						textField.tag_delete(tag)
@@ -290,16 +327,17 @@ class SeqDiagram:
 				if lastBox != None:
 					textField.insert("end", "end box\n", "part")
 				textField.insert("end", "\n")
+				# logs
 				for value in self.logList:
 					if type(value) == str:
 						# print ("out+:", value)
-						textField.insert("end", str(value) + "\n")
+						textField.insert("end", ("\t" * tab) +  str(value) + "\n")
 					elif type(value) == SeqDiagramElement:
 						# print ("out!:", value.out())
-						textField.insert("end", str(value.out()) + "\n")
+						textField.insert("end", ("\t" * tab) + str(value.out()) + "\n")
 					else:
 						# print ("out>:", value)
-						value.out()
+						value.out(tab+1)
 		else:
 			# textField.insert("end", "hnote over value: idle" + "\n")
 			# print ("*************** out status passive *******************")
@@ -312,6 +350,8 @@ class SeqDiagram:
 	def activate(self, activateElements = []):
 		'''
 			deactivate all elements except those, which are in the list, and their groups
+			if the list is empty, activate all Elements
+			
 		'''
 		self.statusActive = True
 		if 0 < len(activateElements) and self.getParent() != None:
@@ -353,6 +393,9 @@ class SeqDiagram:
 		return self.statusActive
 
 	def reset(self):
+		'''
+		clear all logs
+		'''
 		for content in self.logList:
 			if type(content) != str and type(content) != SeqDiagramElement:
 				content.reset()
@@ -531,7 +574,7 @@ class SeqDiagram:
 			_name = self.participant[_id]
 		self.log("note over " + _id + " " + color + ": " + comment)
 	
-	def displayStructure(self, tab = 0):
+	def getMetaInfo(self, tab = 0):
 		'''
 			iterates recursively through the logs and collects all items
 			result is length, the logitems and groupnames
@@ -567,7 +610,7 @@ class SeqDiagram:
 				if self.statusActive:
 					result.addActive(1)
 			else:
-				resultSub = elem.displayStructure(tab + 1)
+				resultSub = elem.getMetaInfo(tab + 1)
 				result += resultSub
 				if self.statusActive:
 					result.addActive(resultSub.getValueActive())
@@ -575,7 +618,11 @@ class SeqDiagram:
 				#	result.addActive(resultSub)
 		if seqDiagramVerbose:
 			print ("\t" * 2 * tab, "*** length", str(result))
-		
+		if self.getParent() == None:
+			if self.amountLines != None:
+				self.amountLines.set(result.getValueActive())
+				# print ("result Elems:\t", result.getElems())
+				# print ("result Groups:\t", result.getGroup())
 		return result
 	
 	def __len__(self):
