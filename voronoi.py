@@ -33,7 +33,6 @@ def circle(s0,s1,s2):
 	x0,y0 = s0.getX(), s0.getY()
 	x1,y1 = s1.getX(), s1.getY()
 	x2,y2 = s2.getX(), s2.getY()
-	seqDiagram.comment(str(x0) + "," + str(y0) + "\\n" + str(x1) + "," + str(y1) + "\\n" + str(x2) + "," + str(y2))
 	k1x = 2 * (x1 - x0)
 	k1y = 2 * (y1 - y0)
 	k2x = 2 * (x2 - x0)
@@ -55,9 +54,13 @@ def circle(s0,s1,s2):
 		d2x, d2y = x2 - mx, y2 - my
 		r = math.sqrt(d0x*d0x + d0y*d0y)
 		# print (mx,my, math.sqrt(d0x*d0x + d0y*d0y), math.sqrt(d1x*d1x + d1y*d1y), math.sqrt(d2x*d2x + d2y*d2y))
+	# seqDiagram.comment(formatFloatOrNone(x0) + "," + formatFloatOrNone(y0) + "\\t" + formatFloatOrNone(x1) + "," + formatFloatOrNone(y1) + "\\t" + formatFloatOrNone(x2) + "," + formatFloatOrNone(y2) + "\\nCenter:" + formatFloatOrNone(mx) + "," + formatFloatOrNone(my) + ", radius:"  + formatFloatOrNone(r))
 	return mx,my,r
 
 def arcCircle(p):
+	'''
+		calculates the circle based on the arcs
+	'''
 	seqDiagram.call()
 	return circle(p[0].getSite(),p[1].getSite(),p[2].getSite())
 
@@ -124,11 +127,11 @@ class MCanvas:
 		width,fill=1,"#44f"
 		self.canvas.create_line(*line, width=width, fill=fill, activefill = "#f00", tags=('arc'))
 
-	def drawCircle(self, x,y,r):
+	def drawCircle(self, x,y,r, outline="#cef"):
 		seqDiagram.call()
 		lx,ly = self.xy(x - r, y - r)
 		ux,uy = self.xy(x + r, y + r)
-		self.canvas.create_oval(lx,ly,ux,uy, outline="#cef", fill="", width=5, tags=('circle'))
+		self.canvas.create_oval(lx,ly,ux,uy, outline=outline, fill="", width=5, tags=('circle'))
 		kx,ky = self.xy(x,y)
 		# center of the circle
 		self.canvas.create_oval(kx-7,ky-7,kx+7,ky+7, outline="#000", fill="#fa6", width=1, tags=('circle'))
@@ -231,10 +234,10 @@ class BeachArc:
 		self.active = True
 		# the arc that is the basis for the edge
 		self.edgeArc = None
-		self.attachedCircleEvents = []
+		self.circleEvent = None
 		self.id = BeachArc.next_id
 		BeachArc.next_id += 1
-		seqDiagram.comment(str(site), color="#cff")
+		seqDiagram.comment("new Arc: " + str(self.id) + "\\nto Site: " + str(site), color="#cff")
 
 	def getSite(self):
 		return self.site
@@ -243,6 +246,9 @@ class BeachArc:
 		return self.id
 		
 	def getAllId(self):
+		'''
+			ids of the arcs
+		'''
 		seqDiagram.call()
 		seqDiagram.comment("id=" + str(self.id))
 		idTop,idCenter,idBottom = None,None,None
@@ -257,6 +263,9 @@ class BeachArc:
 		return idTop,idCenter,idBottom
 		
 	def getSiteIds(self):
+		'''
+			ids of the sites
+		'''
 		seqDiagram.call()
 		seqDiagram.comment("id=" + str(self.id))
 		idTop,idCenter,idBottom = None,None,None
@@ -273,17 +282,17 @@ class BeachArc:
 	def setNextTop(self, arc):
 		seqDiagram.call()
 		if arc == None:
-			seqDiagram.comment("set Next Top: None")
+			seqDiagram.comment("set Next Top " + str(self.getId()) + ": None")
 		else:
-			seqDiagram.comment("set Next Top: " + str(arc.getSite()))
+			seqDiagram.comment("set Next Top " + str(self.getId()) + ": " + str(arc.getId()))
 		self.nextTop = arc
 
 	def setNextBottom(self, arc):
 		seqDiagram.call()
 		if arc == None:
-			seqDiagram.comment("set Next Bottom: None")
+			seqDiagram.comment("set Next Bottom " + str(self.getId()) + ": None")
 		else:
-			seqDiagram.comment("set Next Bottom: " + str(arc.getSite()))
+			seqDiagram.comment("set Next Bottom " + str(self.getId()) + ": " + str(arc.getId()))
 		self.nextBottom = arc
 
 	def getNextTop(self):
@@ -315,8 +324,8 @@ class BeachArc:
 		seqDiagram.comment("set: " + str(arc.getSite()))
 		self.edgeArc = arc
 
-	def getSiteX(self):
-		return self.site.getX()
+#	def getSiteX(self):
+#		return self.site.getX()
 
 	def copy(self):
 		seqDiagram.call()
@@ -363,64 +372,181 @@ class BeachArc:
 				# the two solution
 				limitHigh = 0.5 * (- math.sqrt(a1*a1 - 4*a2*a0) - a1) / a2
 				limitLow = 0.5 * (  math.sqrt(a1*a1 - 4*a2*a0) - a1) / a2
-		# print ("BeachArc.edgeLimits\t" + str(self) + "\t" + str(self.edgeArc) + "\tlimit: " + str(limitLow) + "," + str(limitHigh))
+			# print ("BeachArc.edgeLimits\t" + str(self) + "\t" + str(self.edgeArc) + "\tlimit: " + str(limitLow) + "," + str(limitHigh))
 		else:
 			seqDiagram.comment("no EdgeArc for " + str(self.getSite()))
 		seqDiagram.ret(limitLow=formatFloatOrNone(limitLow),limitHigh=formatFloatOrNone(limitHigh))
 		return limitLow,limitHigh
 		
+	def beachValueAt(self,d,y):
+		seqDiagram.call(d=d,y=y)
+		return 0
+		
+	def circleCoor(self):
+		'''
+			get center and radius for the arc
+		'''
+		mx,my,r = math.nan, math.nan, math.nan
+		if self.nextTop != None and self.nextBottom != None:
+			x0,y0 = self.nextTop.getSite().getX(), self.nextTop.getSite().getY()
+			x1,y1 = self.getSite().getX(), self.getSite().getY()
+			x2,y2 = self.nextBottom.getSite().getX(), self.nextBottom.getSite().getY()
+			k1x = 2 * (x1 - x0)
+			k1y = 2 * (y1 - y0)
+			k2x = 2 * (x2 - x0)
+			k2y = 2 * (y2 - y0)
+			k1 = x1 * x1 + y1 * y1 - x0 * x0 - y0 * y0
+			k2 = x2 * x2 + y2 * y2 - x0 * x0 - y0 * y0
+			m = k1x * k2y - k2x * k1y
+			if (m == 0):
+				# all three points are on a line
+				pass
+			else:
+				mx = k1 * k2y - k2 * k1y
+				my = k1x * k2 - k2x * k1
+				mx /= m
+				my /= m
+				d0x, d0y = x0 - mx, y0 - my
+				d1x, d1y = x1 - mx, y1 - my
+				d2x, d2y = x2 - mx, y2 - my
+				r = math.sqrt(d0x*d0x + d0y*d0y)
+				result = mx,my,r
+		return mx,my,r
+		
+	def circle(self):
+		'''
+			return the event
+		'''
+		seqDiagram.call()
+		result = math.nan
+		mx,my,r = self.circleCoor()
+		if mx != math.nan:
+			result = mx + r
+		return result
+		
+	def getIntersectionspointsToArc(self,arc,sweepline):
+		'''
+			returns a tuple
+		'''
+		seqDiagram.call(x=formatFloatOrNone(sweepline))
+		seqDiagram.comment(str(self.getId()) + " " + str(arc.getId()), color="#cff")
+		limitLow,limitHigh = None, None
+		Py,Px = self.site.getY(), self.site.getX()
+		Qy,Qx = arc.getSite().getY(), arc.getSite().getX()
+		a2 = Qx-Px
+		a1 = 2*Qy*(sweepline - Px) - 2*Py*(sweepline - Qx)
+		a0 = Px*sweepline*sweepline - Qx*sweepline*sweepline + Qy*Qy*sweepline + Qx*Qx*sweepline - Py*Py*sweepline - Px*Px*sweepline - Px*Qy*Qy - Px*Qx*Qx + Py*Py*Qx + Px*Px*Qx
+		aa = a1*a1 - 4*a2*a0
+		if 0 <= aa:
+			if a2 == 0:
+				limitHigh = 0.5 * (Qy + Py)
+				limitLow = limitHigh
+			else:
+				limitHigh = 0.5 * (- math.sqrt(aa) + a1) / a2
+				limitLow = 0.5 * (math.sqrt(aa) + a1) / a2
+				seqDiagram.comment ("Px,Py,Qx,Qy,d:\t" + str(Px) + ", " + str(Py) + ", " + str(Qx) + ", " + str(Qy) + ", " + str(sweepline) + "\\n" + str(limitHigh) + ", " + str(limitLow), "#ddd")
+		return limitHigh, limitLow
+	
 	def getIntersectionspointsToNextArcs(self,d):
 		'''
-			intersectionPoints to the next arcs above and below the actual arc
+			utilize maxima for all the formulas
+			the result of this method are intersectionPoints to the next arcs above and below the actual arc
 			depending on the sweepline
-			the intersection M between the two points P and Q satiesfies these both equations
-				d - My = sqrt((Qx - Mx) ^ 2 + (Qy - My) ^ 2)
-				d - My = sqrt((Px - Mx) ^ 2 + (Py - My) ^ 2)
+			the intersection M between the two arcs defined py the sites P and Q satiesfies these both equations
+				eq1: 0 = (Qx - Mx)^2 + (Qy - My)^2 - (d - Mx)^2;
+				eq2: 0 = (Px - Mx)^2 + (Py - My)^2 - (d - Mx)^2;
+				solution: solve([eq1, eq2], [Mx,My]);
+			it is important to keep in mind, that there are usually two solutions to this equation, and one of them is misleading
+			
+			to get a more comprehensible form, and because we are only interested in My
+				eq_sub : expand(eq1 - eq2);
+				Mx_expr : rhs(first(solve(eq_sub, Mx)));
+				eqMy : subst(Mx = Mx_expr, eq1);
+			to get a quadratic equation 'a*My*My + b*My + c' for My
+				a: ratcoef(rhs(eqMy), My, 2);
+				b: ratcoef(rhs(eqMy), My, 1);
+				c: ratcoef(rhs(eqMy), My, 0);
+			with
+				My = ( -b + sqrt(b * b - 4 * a *c) / (2 * a) , ( -b - sqrt(b * b - 4 * a *c) / (2 * a)
+			we see some repeating terms for a,b,c, which are a0, a1, a2 (see below)
+			we also need the derivation, 
+				normally when an arc becomes zero, the arc should be closed
+				but in some circumstances this also applies when an arc just have been created
+				so we must know if the arc is shrinking or growing 
+				dUp: factor(diff(rhs(first(solve(eqMy,My))), d));
+				d0: ratcoef(factor(diff(rhs(eqMy), d)), My, 0);
+				
+			the solution from chatGPT is similar
+				b2 = Qx-Px
+				b1 = Qy*(d-Px) - Py*(d-Qx)
+				b0 = (d-Px)*(d-Qx) * ((Py-Qy)*(Py-Qy) + (Px-Qx)*(Px-Qx))
+				
+				My = (b1 + sqrt(b0)) / b2, (b1 - sqrt(b0)) / b2
+				
 		'''
 		# print ("BeachArc.getLimits.1\t",self.site,d)
-		seqDiagram.call(x=d)
+		seqDiagram.call(x=formatFloatOrNone(d))
 		seqDiagram.comment(str(self.site), color="#cff")
 		limitLow,limitHigh = None, None
+		limitLowNone,limitHighNone = None, None
 		if self.nextTop != None:
+			limitHigh,limitLowNone = self.getIntersectionspointsToArc(self.nextTop,d)
 			Py,Px = self.site.getY(), self.site.getX()
 			Qy,Qx = self.nextTop.getSite().getY(), self.nextTop.getSite().getX()
 			a2 = Qx-Px
 			a1 = 2*Py*d - 2*Qy*d - 2*Py*Qx + 2*Px*Qy
 			a0 = Px*d*d - Qx*d*d + Qy*Qy*d + Qx*Qx*d - Py*Py*d - Px*Px*d - Px*Qy*Qy - Px*Qx*Qx + Py*Py*Qx + Px*Px*Qx
+			
 			aa = a1*a1 - 4*a2*a0
 			if 0 <= aa:
 				if a2 == 0:
 					limitHigh = 0.5 * (Qy + Py)
+					deltaLimitHigh = 0
 				else:
 					# the two solution (only the limitHigh is actually needed)
-					limitHigh = 0.5 * (- math.sqrt(a1*a1 - 4*a2*a0) - a1) / a2
-					limitLowNone = 0.5 * (  math.sqrt(a1*a1 - 4*a2*a0) - a1) / a2
+					limitHigh = 0.5 * (- math.sqrt(aa) - a1) / a2
+					limitLowNone = 0.5 * (math.sqrt(aa) - a1) / a2
+					seqDiagram.comment ("Px,Py,Qx,Qy,d:\t" + str(Px) + ", " + str(Py) + ", " + str(Qx) + ", " + str(Qy) + ", " + str(d) + "\\n" + str(limitHigh) + ", " + str(limitLowNone), "#ddd")
+			print ("x top", top1, top2, limitHigh, limitLowNone)
 			# print ("BeachArc.getLimits.2\t",limitHigh,limitLowNone)
 		if self.nextBottom != None:
+			limitHighNone,limitLow = self.getIntersectionspointsToArc(self.nextBottom,d)
 			Py,Px = self.site.getY(), self.site.getX()
 			Qy,Qx = self.nextBottom.getSite().getY(), self.nextBottom.getSite().getX()
 			a2 = Qx-Px
 			a1 = 2*Py*d - 2*Qy*d - 2*Py*Qx + 2*Px*Qy
 			a0 = Px*d*d - Qx*d*d + Qy*Qy*d + Qx*Qx*d - Py*Py*d - Px*Px*d - Px*Qy*Qy - Px*Qx*Qx + Py*Py*Qx + Px*Px*Qx
+			
 			aa = a1*a1 - 4*a2*a0
 			if 0 <= aa:
 				if a2 == 0:
 					limitLow = 0.5 * (Qy + Py)
 				else:
 					# the two solution (only the limitLow is actually needed)
-					limitHighNone = 0.5 * (- math.sqrt(a1*a1 - 4*a2*a0) - a1) / a2
-					limitLow = 0.5 * (  math.sqrt(a1*a1 - 4*a2*a0) - a1) / a2
+					limitHighNone = 0.5 * (- math.sqrt(aa) - a1) / a2
+					limitLow = 0.5 * (  math.sqrt(aa) - a1) / a2
+					seqDiagram.comment ("Px,Py,Qx,Qy,d:\t" + str(Px) + ", " + str(Py) + ", " + str(Qx) + ", " + str(Qy) + ", " + str(d) + "\\n" + str(limitHighNone) + ", " + str(limitLow), "#ddd")
+			print ("x bottom", bottom1, bottom2, limitHighNone, limitLow)
 			# print ("BeachArc.getLimits.3\t",limitHighNone,limitLow)
 		seqDiagram.ret(limitLow=formatFloatOrNone(limitLow),limitHigh=formatFloatOrNone(limitHigh))
 		return limitLow,limitHigh
-		
+	
+	def setCircleEvent(self,circleEvent):
+		seqDiagram.call()
+		if self.circleEvent != None:
+			seqDiagram.comment ("arc [" + str(self.id) + "] deactivate CircleEvent: " + str(self.circleEvent))
+			self.circleEvent.deactivate()
+		seqDiagram.comment ("arc [" + str(self.id) + "] set CircleEvent: " + str(circleEvent))
+		self.circleEvent = circleEvent
+	
 	def __str__(self):
 		idTop, idBottom = "-","-"
 		if self.nextTop != None:
 			idTop = self.nextTop.getId()
 		if self.nextBottom != None:
 			idBottom = self.nextBottom.getId()
-		return "{" + str(self.id) + ":" +str(self.site) + "[" + str(idBottom) + "," + str(idTop) + "]" + "}"
+		# "{" + str(self.id) + ":" +str(self.site) + "[" + str(idBottom) + "," + str(idTop) + "]" + "}"
+		return "{" + str(self.id) + ":" +str(self.site) + "}"
 		
 	def draw(self,canvas,d):
 		'''
@@ -473,6 +599,9 @@ class Beachline:
 	def addSite(self, site):
 		'''
 			go along the beachline and find the arc, which fits to the given site
+			adding a new site creates two new arcs
+			- one arc is the arc for the new site
+			- the new site splits the closest arc into an upper an lower arc
 		'''
 		seqDiagram.call(site=site)
 		newCircles = []
@@ -483,14 +612,14 @@ class Beachline:
 			bestIndex, bestDist = None, 9999999999
 			seqDiagram.comment("Elements in Beachline: " + str(len(self.arcs)), color="#fff")
 			# find the Arc-Element with the matchin upper and lower limit
-			seqDiagram.groupStart("find best beachArc\\n" + str(site.getX()) + " " + str(site.getY()), color="#dfb")
+			seqDiagram.groupStart("find best beachArc\\n" + str(site.getX()) + " " + str(site.getY()), color="#fda")
 			for i in range(len(self.arcs)):
 				# go through all the arcs
 				actualArc = self.arcs[i]
 				# print("Beachline.addSite.1\tSite: ",site,"\t",actualArc)
 				# first test, is the arc inside the limits
 				isInsideLimits = True
-				limitLow,limitHigh = actualArc.getIntersectionspointsToNextArcs(site.getX())
+				limitLow, limitHigh = actualArc.getIntersectionspointsToNextArcs(site.getX())
 				# first limitTest
 				if limitLow != None and site.getY() <= limitLow:
 					isInsideLimits = False
@@ -502,7 +631,7 @@ class Beachline:
 					d = actualArc.dist(site)
 					# print ("Beachline.addSite\tarc fits\tSite: ",site,"\tindex: ",i,"\tarc: ",actualArc,"\tlimits: ",limitLow,limitHigh,"\tdistance",d)
 					if d < bestDist:
-						seqDiagram.comment("arc is closest: " + str(actualArc.getId()), color="#fff")
+						seqDiagram.comment("arc is closest: " + str(actualArc.getId()) + ", distance: " +str(d), color="#fff")
 						bestDist = d
 						bestIndex = i
 				else:
@@ -512,49 +641,63 @@ class Beachline:
 			if bestIndex == None:
 				print ("!!! addSite Fehler")
 			else:
+				# beachArc found at bestIndex
 				seqDiagram.groupStart("add beachArc", color="#efc")
 				# insert new Arc on existing Arc
-				bestArc = self.arcs[bestIndex]
-				seqDiagram.comment("best arc: " + str(bestIndex) + " " + str(bestArc.getSite()) , color="#fff")
 				newArc = BeachArc(site)
+				# the arc that fits the projection of the site event
+				bestArc = self.arcs[bestIndex]
+				seqDiagram.comment("closest arc: " + str(bestArc.getId()) , color="#fff")
 				bestArcCopy = bestArc.copy()
+
 				# insert the two new ArcElements
 				self.arcs[bestIndex+1:bestIndex+1] = [newArc, bestArcCopy]
+				seqDiagram.comment("set the new Arc id = " + str(newArc.getId()) + " between: " + str(bestArcCopy.getId()) + ", " + str(bestArc.getId()), color="#fff")
 				bestArcCopy.setNextBottom(newArc)
 				bestArc.setNextTop(newArc)
 				newArc.setNextBottom(bestArc)
 				newArc.setNextTop(bestArcCopy)
+				# edgearc is obsolet
 				newArc.setEdgeArc(bestArc)
 				if bestArcCopy.getNextTop() != None:
 					bestArcCopy.getNextTop().setNextBottom(bestArcCopy)
+				# index of the new arc, make it obsolet. work with neightbors
 				addIndex = bestIndex+1
+				
+				# calculate the length of the neighboring arcs
+				nextArcTop = bestArc.getIntersectionspointsToNextArcs(site.getX());
+				nextArcBottom = bestArcCopy.getIntersectionspointsToNextArcs(site.getX());
 				# print ("Beachline.addSite\tadd arc \tSite: ",site, "\tnewArc", newArc,"\tbestArcAbove", bestArc, "\tbestArcBelow", bestArcCopy, "\taddIndex:", addIndex)
 				seqDiagram.groupEnd("add beachArc")
 				# Set the CircleEvents
-				seqDiagram.groupStart("set CircleEvents", color="#bdf")
+				seqDiagram.groupStart("calculate CircleEvents", color="#bdf")
 				# add the circleEvents
 				c1,c2 = None, None
 				pc1,pc2 = None, None
 				if addIndex > 1:
 					pc1 = self.arcs[addIndex],self.arcs[addIndex-1],self.arcs[addIndex-2]
-					c1 = arcCircle(pc1)
+					# c1 = arcCircle(pc1)
+					c1 = self.arcs[addIndex-1].circle()
+					# print ("circle1", c1, "=", c1Alt)
 					# print ("Beachline.addSite\tcirc above\tSite: ",c1,"\t", self.arcs[addIndex-2], self.arcs[addIndex-1], self.arcs[addIndex])
-					seqDiagram.comment("circle above x:" + formatFloatOrNone(c1[0]) + ", y:" + formatFloatOrNone(c1[1]) + ", r:" + formatFloatOrNone(c1[2]))
+					seqDiagram.comment("circle for arc " + str(self.arcs[addIndex-1].getId()) + " above x:" + formatFloatOrNone(c1))
 				if addIndex < len(self.arcs)-2:
 					pc2 = self.arcs[addIndex+2],self.arcs[addIndex+1],self.arcs[addIndex]
-					c2 = arcCircle(pc2)
+					# c2 = arcCircle(pc2)
+					c2 = self.arcs[addIndex+1].circle()
+					# print ("circle1", c2, "=", c2Alt)
 					# print ("Beachline.addSite\tcirc below\tSite: ",c2,"\t", self.arcs[addIndex+2], self.arcs[addIndex+1], self.arcs[addIndex])
-					seqDiagram.comment("circle below x:" + formatFloatOrNone(c2[0]) + ", y:" + formatFloatOrNone(c2[1]) + ", r:" + formatFloatOrNone(c2[2]))
+					seqDiagram.comment("circle for arc " + str(self.arcs[addIndex+1].getId()) + " below x:" + formatFloatOrNone(c2))
 				if c1 == None:
 					if c2 == None:
 						seqDiagram.comment("no circleEvents")
 					else:
-						newCircles.append(EventCircle(pc2))
+						newCircles.append(EventCircle(self.arcs[addIndex+1]))
 				else:
-					newCircles.append(EventCircle(pc1))
+					newCircles.append(EventCircle(self.arcs[addIndex-1]))
 					if c2 != None:
-						if c1[0] != c2[0] or c1[1] != c2[1] or c1[2] != c2[2]:
-							newCircles.append(EventCircle(pc2))
+						# if c1[0] != c2[0] or c1[1] != c2[1] or c1[2] != c2[2]:
+						newCircles.append(EventCircle(self.arcs[addIndex+1]))
 				seqDiagram.groupEnd("set CircleEvents")
 				
 		# print("Beachline.addSite\tfinished\tSite: ",site,"\t",self, newCircles)
@@ -568,6 +711,7 @@ class Beachline:
 		arcId = arc.getId()
 		arcTop = arc.getNextTop()
 		arcBottom = arc.getNextBottom()
+		seqDiagram.comment("remove Arc: " + str(arcId) + "\\nmerge Arcs: " + str(arcTop.getId()) + " " + str(arcBottom.getId()))
 		if arcTop != None:
 			arcTop.setNextBottom(arcBottom)
 		if arcBottom != None:
@@ -593,21 +737,19 @@ class Beachline:
 			seqDiagram.groupStart("draw Arc", color="#bfd")
 			seqDiagram.comment("draw Arc: " + str(arc) + "\tSites:" + str(arc.getSiteIds()))
 			arc.draw(canvas,d)
-			# limitLow, limitHigh = arc.getLimits(d)
-			limitLow, limitHigh = arc.edgeLimits(d)
-			limitLow2, limitHigh2 = arc.getIntersectionspointsToNextArcs(d)
-			# print arc
-			edgeArcP = str(arc.edgeArc)
-			if arc.edgeArc == None:
-				edgeArcP += "\t\t"
-			# print ("\tBeachline.drawBeach\t" + str(arc) + "\t" + edgeArcP + "\t" + str(limitLow) + " " + str(limitHigh) + "\t" + str(limitLow2) + " " + str(limitHigh2))
-			if limitLow != None and limitHigh != None:
-				Py,Px = arc.getSite().getY(), arc.getSite().getX()
-				if Px - d != 0:
-					xLow=(Py*Py + Px*Px + limitLow*limitLow - 2*limitLow*Py - d*d) / (2*Px - 2*d)
-					xHigh=(Py*Py + Px*Px + limitHigh*limitHigh - 2*limitHigh*Py - d*d) / (2*Px - 2*d)
-					line = [*canvas.xy(xLow, limitLow), *canvas.xy(xHigh, limitHigh)]
-					# canvas.canvas.create_line(*line, width=3, fill="#000", activefill = "#f00", tags=('arc'))
+			if False:
+				# limitLow, limitHigh = arc.getLimits(d)
+				limitLow, limitHigh = arc.edgeLimits(d)
+				limitLow2, limitHigh2, deltaLow, deltaHigh = arc.getIntersectionspointsToNextArcs(d)
+				# print arc
+				# print ("\tBeachline.drawBeach\t" + str(arc) + "\t" + edgeArcP + "\t" + str(limitLow) + " " + str(limitHigh) + "\t" + str(limitLow2) + " " + str(limitHigh2))
+				if limitLow != None and limitHigh != None:
+					Py,Px = arc.getSite().getY(), arc.getSite().getX()
+					if Px - d != 0:
+						xLow=(Py*Py + Px*Px + limitLow*limitLow - 2*limitLow*Py - d*d) / (2*Px - 2*d)
+						xHigh=(Py*Py + Px*Px + limitHigh*limitHigh - 2*limitHigh*Py - d*d) / (2*Px - 2*d)
+						line = [*canvas.xy(xLow, limitLow), *canvas.xy(xHigh, limitHigh)]
+						# canvas.canvas.create_line(*line, width=3, fill="#000", activefill = "#f00", tags=('arc'))
 			seqDiagram.groupEnd("draw Arc")
 		seqDiagram.groupEnd("draw Beachline")
 
@@ -620,10 +762,14 @@ class Event:
 		self.id = Event.nextEventId
 		# seqDiagram.call(_id=self.id)
 		Event.nextEventId += 1
-		self.open = True
+		self.active = True
 		
 	def getId(self):
 		return self.id
+		
+	def deactivate(self):
+		seqDiagram.call()
+		self.active = False
 		
 	def __lt__(self, other):
 		result = other.getX() - self.getX() > 0
@@ -662,129 +808,134 @@ class EventSite(Event):
 		seqDiagram.groupEnd("draw EventSite")
 		
 	def __str__(self):
-		return ".site\t" + str(self.id) + "\t" + "-+"[self.open] + " " + str(self.site)
+		return ".site\t" + "-+"[self.active] + " Site:" + str(self.site)
 
 class EventCircle(Event):
-	def __init__(self,p):
+	def __init__(self,arc):
 		# parameter is an triple of arcs, with p[1] the central arc
-		# test, if only the central arc as argument is needed (and nothing else)
 		seqDiagram.call()
 		super().__init__()
-		self.arc = p[1]
-		self.sites = p[1].getSiteIds()
-		seqDiagram.comment(str(self.sites) + " =?= " + str(p[0].getSite().getId()) + "," + str(p[1].getSite().getId()) + "," + str(p[2].getSite().getId()))
-		coor = arcCircle(p)
-		# seqDiagram.comment("EventCircle\\n" + str(p[0]) + " " + str(p[1]) + " " + str(p[2]))
-		self.mx = coor[0]
-		self.my = coor[1]
-		self.r = coor[2]
-		# seqDiagram.out()
+		self.arc = arc
+		self.site = arc.getSite()
+		self.mx = self.arc.circle()
+		# historical Data for Display
+		self.histX, self.histY, self.histR = self.arc.circleCoor()
 
-	def getY(self):
-		return self.my
-		
 	def getX(self):
-		'''
-			the circle is defined by the point were the event happens
-			and that is on the right edge
-		'''
-		return self.mx + self.r
+		return self.mx
 		
 	def handleEvent(self, beachline):
 		seqDiagram.groupStart("circleEvent", color="#cffdff")
 		seqDiagram.call()
-		
-		seqDiagram.comment("d=" + str(self.getX()))
-		bottomValue, topValue = self.arc.getIntersectionspointsToNextArcs(self.getX())
-		seqDiagram.comment("bottomValue, topValue=" + str(bottomValue) + ", " + str(topValue))
-
-		# p0l,p0h = self.arcs[0].getIntersectionspointsToNextArcs(self.getX())
-		# p1l,p2h = self.arcs[1].getIntersectionspointsToNextArcs(self.getX())
-		# p2l,p2h = self.arcs[2].getIntersectionspointsToNextArcs(self.getX())
-
-		# stored Beachline
-		# arcTop0, arcCenter0, arcBottom0 = self.arcs[0].getId(), self.arcs[1].getId(), self.arcs[2].getId()
-		arcTop0, arcCenter0, arcBottom0 = self.sites[0], self.sites[1], self.sites[2]
-		# actual Beachline
-		arcTop1, arcCenter1, arcBottom1 = self.arc.getSiteIds()
-		seqDiagram.comment(str(arcTop0) + " " + str(arcCenter0) + " " + str(arcBottom0))
-		seqDiagram.comment(str(arcTop1) + " " + str(arcCenter1) + " " + str(arcBottom1))
-		seqDiagram.comment(str(beachline))
 		newCircles = []
-		if arcTop0 == arcTop1 and arcCenter0 == arcCenter1 and arcBottom0 == arcBottom1 and abs(topValue - bottomValue) < 1e-6:
-			seqDiagram.groupStart("removeArc", color="#afedff")
-			# the stored beachline is still relevant
-			arcTop = self.arc.getNextTop()
-			arcBottom = self.arc.getNextBottom()
-			beachline.removeArc(self.arc)
-			seqDiagram.comment(str(beachline))
-			seqDiagram.groupEnd()
-			# do new Circles evolve
-			if arcTop != None and arcBottom != None:
-				c1,c2 = None, None
-				pc1,pc2 = None, None
-				arcTopTop = arcTop.getNextTop()
-				arcBottomBottom = arcBottom.getNextBottom()
-				seqDiagram.comment("arcTopTop:" + str(arcTopTop) + "\tarcTop:" + str(arcTop) + "\tarcBottom:" + str(arcBottom) + "\tarcBottomBottom:" + str(arcBottomBottom))
-				if arcTopTop != None:
-					pc1 = arcTopTop,arcTop,arcBottom
-					c1 = arcCircle(pc1)
-				if arcBottomBottom != None:
-					pc2 = arcTop,arcBottom,arcBottomBottom
-					c2 = arcCircle(pc2)
-				if c1 == None:
-					if c2 == None:
-						seqDiagram.comment("no circleEvents")
-					else:
-						seqDiagram.comment("new CircleElement P2: " + str(pc2[0].getId()) + "," + str(pc2[1].getId()) + "," + str(pc2[2].getId()) + " => " + str(pc2[0].getSite().getId()) + "," + str(pc2[1].getSite().getId()) + "," + str(pc2[2].getSite().getId()) + "\\n" + str(c2))
-						if c2[0] + c2[2] >= self.getX():
-							seqDiagram.comment("CircleEvent added:" + str(c2[0]) + ", " + str(c2[2]) + " >= " + str(self.getX()))
-							# print ("addCircle 2")
-							newCircles.append(EventCircle(pc2))
+		if self.active:
+			self.deactivate()
+			
+			seqDiagram.comment("d = " + formatFloatOrNone(self.getX()))
+			bottomValue, topValue = self.arc.getIntersectionspointsToNextArcs(self.getX())
+			seqDiagram.comment("arc [" + str(self.arc.getId()) + "] Bottom/Top = " + formatFloatOrNone(bottomValue) + ", " + formatFloatOrNone(topValue))
+
+			# p0l,p0h = self.arcs[0].getIntersectionspointsToNextArcs(self.getX())
+			# p1l,p2h = self.arcs[1].getIntersectionspointsToNextArcs(self.getX())
+			# p2l,p2h = self.arcs[2].getIntersectionspointsToNextArcs(self.getX())
+
+			# stored Beachline
+			# arcTop0, arcCenter0, arcBottom0 = self.arcs[0].getId(), self.arcs[1].getId(), self.arcs[2].getId()
+			# arcTop0, arcCenter0, arcBottom0 = self.sites[0], self.sites[1], self.sites[2]
+			# actual Beachline
+			# arcTop1, arcCenter1, arcBottom1 = self.arc.getSiteIds()
+			# seqDiagram.comment("initial IDs: " + str(arcTop0) + " " + str(arcCenter0) + " " + str(arcBottom0) + "\\nactual IDs: " + str(arcTop1) + " " + str(arcCenter1) + " " + str(arcBottom1) + "\\n" + str(beachline))
+			# seqDiagram.comment(str(beachline))
+			# test if the arcs are still consecutive and the edge has really collapsed
+			# if arcTop0 == arcTop1 and arcCenter0 == arcCenter1 and arcBottom0 == arcBottom1 and abs(topValue - bottomValue) < 1e-6:
+			if abs(topValue - bottomValue) < 1e-6:
+				# self.arc.beachValueAt(self.getX(),bottomValue)
+				seqDiagram.groupStart("removeArc " + str(self.arc.getId()), color="#afedff")
+				# the stored beachline is still relevant
+				arcTop = self.arc.getNextTop()
+				arcBottom = self.arc.getNextBottom()
+				beachline.removeArc(self.arc)
+				seqDiagram.comment(str(beachline))
+				seqDiagram.groupEnd()
+				# do new Circles evolve
+				seqDiagram.groupStart("Test for new CircleEvents ", color="#afedff")
+				if arcTop != None and arcBottom != None:
+					c1,c2 = None, None
+					# pc1,pc2 = None, None
+					# arcTopTop = arcTop.getNextTop()
+					# arcBottomBottom = arcBottom.getNextBottom()
+					seqDiagram.comment("arcTop:" + str(arcTop) + "\tarcBottom:" + str(arcBottom))
+					# if arcTopTop != None:
+					#	pc1 = arcTopTop,arcTop,arcBottom
+					#	c1 = arcCircle(pc1)
+					# if arcBottomBottom != None:
+					#	pc2 = arcTop,arcBottom,arcBottomBottom
+					#	c2 = arcCircle(pc2)
+					cTop = arcTop.circle()
+					cBottom = arcBottom.circle()
+					if cTop != None:
+						if cTop > self.getX():
+							newCircle = EventCircle(arcTop)
+							newCircles.append(newCircle)
 						else:
-							seqDiagram.comment("CircleEvent denied:" + str(c2[0]) + ", " + str(c2[2]) + " < " + str(self.getX()))
-				else:
-					seqDiagram.comment("new CircleElement P1: " + str(pc1[0].getId()) + "," + str(pc1[1].getId()) + "," + str(pc1[2].getId()) + " => " + str(pc1[0].getSite().getId()) + "," + str(pc1[1].getSite().getId()) + "," + str(pc1[2].getSite().getId()) + "\\n" + str(c1))
-					if c1[0] + c1[2] >= self.getX():
-						seqDiagram.comment("CircleEvent added:" + str(c1[0]) + ", " + str(c1[2]) + " >= " + str(self.getX()))
-						# print ("addCircle 1")
-						newCircles.append(EventCircle(pc1))
+							seqDiagram.comment("circleEvents for Arc [" + str(arcTop.getId()) + "]: " + formatFloatOrNone(cTop) + " is behind sweep " + formatFloatOrNone(self.getX()))
 					else:
-						seqDiagram.comment("CircleEvent denied:" + str(c1[0]) + ", " + str(c1[2]) + " < " + str(self.getX()))
-					if c2 != None:
-						if c1[0] != c2[0] or c1[1] != c2[1] or c1[2] != c2[2]:
-							seqDiagram.comment("new CircleElement P2: " + str(pc2[0].getId()) + "," + str(pc2[1].getId()) + "," + str(pc2[2].getId()) + " => " + str(pc2[0].getSite().getId()) + "," + str(pc2[1].getSite().getId()) + "," + str(pc2[2].getSite().getId()) +  "\\n" + str(c2))
-							seqDiagram.comment("test?: " + str(c2[0]) + "+" + str(c2[2]) + " >= " + str(self.getX()))
-							if c2[0] + c2[2] >= self.getX():
-								seqDiagram.comment("CircleEvent added:" + str(c2[0]) + ", " + str(c2[2]) + " >= " + str(self.getX()))
-								# print ("addCircle 2")
-								newCircles.append(EventCircle(pc2))
-							else:
-								seqDiagram.comment("CircleEvent denied:" + str(c2[0]) + ", " + str(c2[2]) + " < " + str(self.getX()))
+						seqDiagram.comment("Arc Top is None")
+					if cBottom != None:
+						if cBottom > self.getX():
+							newCircle = EventCircle(arcBottom)
+							newCircles.append(newCircle)
+						else:
+							seqDiagram.comment("circleEvents for Arc [" + str(arcBottom.getId()) + "]: " + formatFloatOrNone(cBottom) + " is behind sweep " + formatFloatOrNone(self.getX()))
+					else:
+						seqDiagram.comment("Arc Bottom is None")
+				seqDiagram.groupEnd()
+			else:
+				# arc will not get removed
+				# this should not happen, since Circle-Events should get deactivated
+				reason = ""
+				if abs(topValue - bottomValue) > 1e-6:
+					reason = "arc >= " + formatFloatOrNone(topValue - bottomValue)
+				seqDiagram.comment("outdated circleEvent: " + reason, "#f44")
+			self.open = False
+			# seqDiagram.ret()
+			# newCircles = []
 		else:
-			seqDiagram.comment("outdated circleEvent")
-		self.open = False
-		# seqDiagram.ret()
-		# newCircles = []
+			seqDiagram.comment("Circle-Event for arc " + str(self.arc.getId()) + " not active")
 		seqDiagram.groupEnd("circleEvent")
 		return newCircles
+	
+	def attachToArc(self):
+		seqDiagram.call()
+		self.arc.setCircleEvent(self)
 		
+	def getArcId(self):
+		result = "no Arc"
+		if self.arc != None:
+			result = self.arc.getId()
+		return result
+	
 	def draw(self,canvas,d):
-		if self.open:
+		if self.getX() >= d:
 			seqDiagram.groupStart("draw EventCircle", color="#afa")
 			seqDiagram.call()
-			canvas.drawCircle(self.mx,self.my,self.r)
-			labelY,labelX = canvas.xy(self.my,self.mx + self.r)
+			color = "#cef"
+			if self.active:
+				color = "#8bf"
+			canvas.drawCircle(self.histX, self.histY, self.histR,color)
+			labelY,labelX = canvas.xy(self.histY,self.histX + self.histR)
 			actualSideIds = self.arc.getSiteIds()
+			actualArcTop, actualArcCenter, actualArcBottom = self.arc.getAllId()
 			# first Ids are the Sides
-			label = str(self.sites[0]) + " " + str(self.sites[1]) + " " + str(self.sites[2]) + "\n" + str(actualSideIds[0]) + " " + str(actualSideIds[1]) + " " + str(actualSideIds[2])
-			canvas.canvas.create_text(labelX+20,labelY,fill="#00f",font=fontCanvas, text=label, tags=('circle'))
+			label = "arc: " + str(self.arc.getId()) + " -> " + str(self.arc.getSite().getId())
+			canvas.canvas.create_text(labelX+60, labelY, fill="#00f", font=fontCanvas, text=label, tags=('circle'))
 			seqDiagram.groupEnd("draw EventCircle")
 		else:
 			seqDiagram.call()
 
 	def __str__(self):
-		return ".circle\t" + str(self.id) + "\t" + "-+"[self.open] + " ["+str(self.mx+self.r) + "," + str(self.my) + "\t(" + str(self.sites) + ")]"
+		status = ["done","open"][self.active]
+		return ".circle " + str(self.arc.getId()) + ": " + status + " [" + formatFloatOrNone(self.mx) + " (site:" + str(self.arc.getSite().getId()) + ")]"
 
 class EventQueue:
 	def __init__(self):
@@ -816,16 +967,19 @@ class EventQueue:
 	def stepQueue(self):
 		seqDiagram.call()
 		actualEvent = self.events[self.index]
-		seqDiagram.comment("index = " + str(self.index) + ", x = " + str(actualEvent.getX()))
+		seqDiagram.comment("event = " + str(actualEvent))
 		# print ("queue step",self.index)
 		if self.beachline == None:
 			self.beachline = Beachline()
 		result = actualEvent.handleEvent(self.beachline)
-		seqDiagram.comment("EventQueue.step\tresult: " + str(result))
-		if result != None:
+		# seqDiagram.comment("EventQueue.step\tresult: " + str(result))
+		if result != None and len(result) > 0:
+			seqDiagram.groupStart("add EventCircle", color="#afa")
 			for circleElement in result:
 				# print ("EventQueue.step\tresult: ",elem)
 				self.addQueue(circleElement)
+				circleElement.attachToArc()
+			seqDiagram.groupEnd()
 		self.index += 1
 		print ("***Beachline", self.beachline)
 		return self.index < len(self.events)
@@ -1056,10 +1210,21 @@ if __name__ == "__main__":
 	seqDiagram.addParticipantOrder("MCanvas", 40)
 	
 	sites = Sites()
-	sites.add(80,20)
-	sites.add(40,30)
-	sites.add(60,30)
-	sites.add(50,50)
+	sites.add(75,10)
+	sites.add(30,30)
+	sites.add(70,30)
+	sites.add(55,50)
+	sites.add(35,60)
+	sites.add(40,70)
+	
+	# sites.add(75,10)
+	# sites.add(25,15)
+	# sites.add(70,40)
+	# sites.add(15,45)
+	# sites.add(20,50)
+	# sites.add(30,55)
+	# sites.add(65,60)
+	# sites.add(55,65)
 	
 	# sites.add(60,10)
 	# sites.add(40,20)

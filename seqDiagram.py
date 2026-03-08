@@ -179,6 +179,7 @@ class SeqDiagram:
 		# that makes the element of the same class group together
 		# key = class-name, value = order
 		self.participantOrder = dict()
+		self.participantColor = dict()
 		# key = object-id, value = classname
 		self.participant = dict()
 		self.logList = list()
@@ -296,16 +297,28 @@ class SeqDiagram:
 			if textField == None:
 				if self.getParent() == None:
 					print ("\n*****************************\n")
-					print ("participant main as \"Main\"")
-					for key, value in participant.items():
-						print ("participant " + key + " as \"" + value + "\"")
-					print ()
+					lastBox=None
+					for key in pk:
+						if participant.get(key) != lastBox:
+							if lastBox != None:
+								print("end box")
+							lastBox = participant.get(key)
+							color = "#ccc"
+							if lastBox in self.top().participantColor:
+								color = self.top().participantColor[lastBox]
+							print("box \"" + lastBox + "\" " + color)
+						print("participant " + key + " as \"" + participant.get(key) + "\"")
+					if lastBox != None:
+						print("end box")
+					
 				for value in self.logList:
-					print ("type(value)", type(value))
+					# print ("type(value)", type(value))
 					if type(value) == str:
-						print (str(id(self)), value)
+						# print (str(id(self)), value)
+						print (("\t" * tab) +  str(value))
 					elif type(value) == SeqDiagramElement:
-						print (str(id(self)), value.out())
+						# print (str(id(self)), value.out())
+						print (("\t" * tab) + str(value.out()))
 					else:
 						value.out(tab+1)
 			else:
@@ -322,7 +335,10 @@ class SeqDiagram:
 							if lastBox != None:
 								textField.insert("end", "end box\n", "part")
 							lastBox = participant.get(key)
-							textField.insert("end", "box \"" + lastBox + "\" #ccc\n", "part")
+							color = "#ccc"
+							if lastBox in self.top().participantColor:
+								color = self.top().participantColor[lastBox]
+							textField.insert("end", "box \"" + lastBox + "\" " + color + "\n", "part")
 						textField.insert("end", "participant " + key + " as \"" + participant.get(key) + "\"" + "\n", "part")
 				if lastBox != None:
 					textField.insert("end", "end box\n", "part")
@@ -407,8 +423,9 @@ class SeqDiagram:
 	def setTextField(self, field):
 		self.top().textField = field
 		
-	def addParticipantOrder(self, name, value):
+	def addParticipantOrder(self, name, value, color="#ccc"):
 		self.top().participantOrder[name] = value
+		self.top().participantColor[name] = color
 
 	def call(self, **info):
 		'''
